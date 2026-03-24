@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarok Pro Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--accent:#38bdf8;--text:#e2e8f0;}
+body{margin:0;font-family:Inter,Arial;background:var(--bg);color:var(--text);} 
+.container{max-width:900px;margin:auto;padding:16px;}
+.card{background:var(--card);padding:16px;border-radius:12px;margin-bottom:16px;}
+button{background:var(--accent);border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;margin:4px;}
+.hidden{display:none;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
+th,td{padding:6px;border-bottom:1px solid #334155;text-align:center;}
+.popup{position:fixed;top:0;left:0;width:100%;height:100%;background:#000a;display:flex;align-items:center;justify-content:center;}
+.popup-inner{background:#1e293b;padding:30px;border-radius:12px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- MODE SELECT -->
+<div id="modeScreen" class="card">
+<h2>Select Mode</h2>
+<button onclick="setMode('enter')">Enter Points</button>
+<button onclick="setMode('view')">Watch Score</button>
+</div>
+
+<!-- START -->
+<div id="startScreen" class="card hidden">
+<h3>Start Game</h3>
+<select id="startDealer"></select>
+<button onclick="startGame()">Start</button>
+</div>
+
+<!-- GAME -->
+<div id="gameUI" class="hidden">
+<div class="card">
+<h3 id="dealerInfo"></h3>
+<button onclick="toggleAdd()">Add Round</button>
+<button onclick="toggleEnd()">End Game</button>
+<button onclick="undoRound()">Undo</button>
+</div>
+
+<div class="card">
+<table id="scoreTable">
+<tr>
+<th>#</th><th>Dealer</th>
+<th>G ⭐<span id="gStar"></span></th>
+<th>S ⭐<span id="sStar"></span></th>
+<th>D ⭐<span id="dStar"></span></th>
+<th>M ⭐<span id="mStar"></span></th>
+</tr>
+</table>
+</div>
+
+<div id="addModule" class="card hidden">
+<select id="mode">
+<option value="team">Team</option>
+<option value="manual">Manual</option>
+</select>
+
+<div id="teamMode">
+<select id="p1"></select>
+<select id="p2"></select>
+<input id="points" type="number" placeholder="Points">
+</div>
+
+<div id="manualMode" class="hidden">
+<input id="g" placeholder="G">
+<input id="s" placeholder="S">
+<input id="d" placeholder="D">
+<input id="m" placeholder="M">
+</div>
+
+<label><input type="checkbox" id="starAll"> Star All (double)</label>
+<button onclick="addRound()">Confirm</button>
+</div>
+
+<div id="endModule" class="card hidden">
+<input id="threshold" placeholder="Points threshold">
+<button onclick="setThreshold()">Set Threshold</button>
+<br>
+<select id="skisSelect"></select>
+<button onclick="setSkis()">Set Skis</button>
+<br>
+<button onclick="endGameManual()">End Now</button>
+</div>
+
+</div>
+
+<div id="popup" class="popup hidden">
+<div class="popup-inner">
+<h2 id="popupText"></h2>
+<button onclick="closePopup()">OK</button>
+</div>
+</div>
+
+</div>
+
+<script>
+const supabase = window.supabase.createClient(
+"https://kkgaceamcqqfacygtvtr.supabase.co",
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+);
+
+let players=["Gordana","Stefi","Dimi","Mile"];
+let scores,history,round,dealerIndex,stars,modeType,gameId,threshold=null,skis=null;
+
+function init(){
+ players.forEach(p=>{
+  startDealer.innerHTML+=`<option>${p}</option>`;
+  p1.innerHTML+=`<option>${p}</option>`;
+  p2.innerHTML+=`<option>${p}</option>`;
+  skisSelect.innerHTML+=`<option>${p}</option>`;
+ });
+ reset();
+}
+
+function setMode(m){
+ modeType=m;
+ modeScreen.classList.add("hidden");
+ if(m==='enter') startScreen.classList.remove("hidden");
+ else loadGames();
+}
+
+function startGame(){
+ dealerIndex=players.indexOf(startDealer.value);
+ startScreen.classList.add("hidden");
+ gameUI.classList.remove("hidden");
+ reset();
+ createGame();
+ updateDealer();
+}
+
+function reset(){
+ scores={Gordana:0,Stefi:0,Dimi:0,Mile:0};
+ stars={Gordana:0,Stefi:0,Dimi:0,Mile:0};
+ history=[];round=0;
+ scoreTable.innerHTML=`<tr><th>#</th><th>Dealer</th><th>G ⭐</th><th>S ⭐</th><th>D ⭐</th><th>M ⭐</th></tr>`;
+}
+
+function toggleAdd(){addModule.classList.toggle('hidden');}
+function toggleEnd(){endModule.classList.toggle('hidden');}
+
+function addRound(){
+ history.push(JSON.parse(JSON.stringify({scores,stars})));
+ let double = starAll.checked;
+
+ if(mode.value==='team'){
+  let pts=+points.value||0;
+  if(double) pts*=2;
+  scores[p1.value]+=pts;
+  scores[p2.value]+=pts;
+ }else{
+  let vals={Gordana:+g.value||0,Stefi:+s.value||0,Dimi:+d.value||0,Mile:+m.value||0};
+  players.forEach(pl=>{
+    let val=vals[pl];
+    if(double) val*=2;
+    scores[pl]+=val;
+  });
+ }
+
+ if(double) players.forEach(p=>stars[p]++);
+
+ round++;
+ let r=scoreTable.insertRow();
+ r.insertCell(0).innerText=round;
+ r.insertCell(1).innerText=players[dealerIndex];
+ players.forEach(p=>r.insertCell(-1).innerText=scores[p]);
+
+ dealerIndex=(dealerIndex+1)%4;
+ updateDealer();
+ logRound();
+ checkEnd();
+}
+
+function updateDealer(){dealerInfo.innerText="Dealer: "+players[dealerIndex];}
+
+function undoRound(){
+ if(!history.length)return;
+ let prev=history.pop();
+ scores=prev.scores;stars=prev.stars;
+ scoreTable.deleteRow(-1);
+ round--;
+}
+
+function setThreshold(){threshold=+thresholdInput.value;}
+function setSkis(){skis=skisSelect.value;}
+function endGameManual(){finishGame(getWinner());}
+
+function checkEnd(){
+ let win=null;
+ if(threshold) players.forEach(p=>{if(scores[p]>=threshold)win=p});
+ if(skis && players[dealerIndex]===skis) win=getWinner();
+ if(win) finishGame(win);
+}
+
+function getWinner(){return players.reduce((a,b)=>scores[a]>scores[b]?a:b);}
+
+function finishGame(w){
+ popupText.innerText=(w==="Dimi"||w==="Mile")? w+" BEST PRO PLAYER!!!" : w+" wins";
+ popup.classList.remove('hidden');
+ saveGame(w);
+}
+
+function closePopup(){popup.classList.add('hidden');}
+
+// SUPABASE
+async function createGame(){
+ let {data}=await supabase.from('games').insert({status:'active'}).select();
+ gameId=data[0].id;
+}
+
+async function logRound(){
+ await supabase.from('rounds').insert({game_id:gameId,round, scores});
+}
+
+async function saveGame(winner){
+ await supabase.from('games').update({status:'finished',winner}).eq('id',gameId);
+}
+
+async function loadGames(){
+ let {data}=await supabase.from('games').select('*');
+ console.log(data);
+}
+
+init();
+</script>
+
+</body>
+</html>
