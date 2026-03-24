@@ -1,251 +1,592 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tarok Pro Tracker</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-:root{--bg:#0f172a;--card:#1e293b;--accent:#38bdf8;--text:#e2e8f0;}
-body{margin:0;font-family:Inter,Arial;background:var(--bg);color:var(--text);} 
-.container{max-width:900px;margin:auto;padding:16px;}
-.card{background:var(--card);padding:16px;border-radius:12px;margin-bottom:16px;}
-button{background:var(--accent);border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;margin:4px;}
-.hidden{display:none;}
-table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{padding:6px;border-bottom:1px solid #334155;text-align:center;}
-.popup{position:fixed;top:0;left:0;width:100%;height:100%;background:#000a;display:flex;align-items:center;justify-content:center;}
-.popup-inner{background:#1e293b;padding:30px;border-radius:12px;text-align:center;}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarok Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #bb86fc;
+            --secondary-color: #03dac6;
+            --error-color: #cf6679;
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --border-color: #333333;
+            --star-color: #ffd700;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1, h2, h3 { margin-bottom: 15px; }
+        
+        .card {
+            background-color: var(--surface-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: #000;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+            margin: 5px;
+        }
+
+        button:hover { opacity: 0.8; }
+        button.secondary { background-color: var(--secondary-color); }
+        button.danger { background-color: var(--error-color); color: white; }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+        }
+
+        .hidden { display: none !important; }
+
+        /* Table Styles */
+        .table-container { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th { background-color: rgba(255,255,255,0.05); }
+        .star { color: var(--star-color); font-size: 0.8em; margin-left: 4px; }
+
+        /* Form Layouts */
+        .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px;}
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: var(--surface-color);
+            padding: 30px; border-radius: 12px; text-align: center;
+            max-width: 400px; width: 90%;
+            border: 2px solid var(--primary-color);
+        }
+        .pro-winner {
+            border-color: var(--star-color);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            animation: pulse 2s infinite;
+        }
+        .pro-winner h2 {
+            font-size: 2.5em; color: var(--star-color); text-transform: uppercase;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Loading Spinner */
+        #loader { text-align: center; margin: 10px; color: var(--secondary-color); }
+    </style>
 </head>
 <body>
+
 <div class="container">
+    <div id="loader" class="hidden">Syncing with database...</div>
 
-<div id="modeScreen" class="card">
-<h2>Select Mode</h2>
-<button onclick="setMode('enter')">Enter Points</button>
-<button onclick="setMode('view')">Watch Score</button>
+    <div id="home-screen" class="card">
+        <h1>Tarok Tracker</h1>
+        <div class="grid-2">
+            <button onclick="app.showSetup()">Enter Points</button>
+            <button class="secondary" onclick="app.showWatch()">Watch Score</button>
+        </div>
+    </div>
+
+    <div id="setup-screen" class="card hidden">
+        <h2>Start New Game</h2>
+        <label>Select Starting Dealer:</label>
+        <select id="starting-dealer"></select>
+        
+        <label>End Game Condition:</label>
+        <select id="end-condition" onchange="app.toggleEndConditionInputs()">
+            <option value="manual">Manual End Only</option>
+            <option value="points">Points Threshold</option>
+            <option value="skis">Skis (Ends on Dealer)</option>
+        </select>
+
+        <div id="points-input-group" class="hidden">
+            <label>Points to win:</label>
+            <input type="number" id="points-threshold" value="1000">
+        </div>
+
+        <div id="skis-input-group" class="hidden">
+            <label>Select Skis Player:</label>
+            <select id="skis-player"></select>
+        </div>
+
+        <div class="flex-row">
+            <button onclick="app.startGame()">Start Game</button>
+            <button class="secondary" onclick="app.showHome()">Back</button>
+        </div>
+    </div>
+
+    <div id="watch-screen" class="card hidden">
+        <h2>Games History</h2>
+        <button class="secondary" onclick="app.showHome()" style="margin-bottom: 15px;">Back</button>
+        <div id="games-list"></div>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        
+        <div class="card flex-row" style="justify-content: space-between; flex-wrap: wrap;">
+            <button onclick="app.toggleModule('add-round-module')">Toggle Add Round</button>
+            <button class="secondary" onclick="app.undoLastRound()">Undo Last</button>
+            <button class="danger" onclick="app.toggleModule('end-game-module')">End Game Settings</button>
+        </div>
+
+        <div id="add-round-module" class="card hidden">
+            <h3>Add Round Data</h3>
+            <div class="flex-row" style="margin-bottom: 15px;">
+                <label><input type="radio" name="input-mode" value="team" checked onchange="app.toggleInputMode()"> Team Mode</label>
+                <label><input type="radio" name="input-mode" value="manual" onchange="app.toggleInputMode()"> Manual Mode</label>
+                <label style="margin-left: auto; color: var(--star-color);">
+                    <input type="checkbox" id="star-all"> ⭐ Star All (x2 Points)
+                </label>
+            </div>
+
+            <div id="team-inputs">
+                <div class="grid-2">
+                    <div>
+                        <label>Player 1:</label>
+                        <select id="team-p1"></select>
+                    </div>
+                    <div>
+                        <label>Player 2 (Partner):</label>
+                        <select id="team-p2"></select>
+                    </div>
+                </div>
+                <label>Points to award:</label>
+                <input type="number" id="team-points" placeholder="e.g. 50">
+            </div>
+
+            <div id="manual-inputs" class="hidden grid-2">
+                </div>
+
+            <button onclick="app.submitRound()" style="width: 100%; margin-top: 10px;">Submit Round</button>
+        </div>
+
+        <div id="end-game-module" class="card hidden">
+            <h3>Manually End Game</h3>
+            <p>Are you sure you want to end the game and declare a winner?</p>
+            <button class="danger" onclick="app.endGame()">Finish & Calculate Winner</button>
+        </div>
+
+        <div class="card table-container">
+            <table id="score-table">
+                <thead>
+                    <tr id="table-header">
+                        <th>Rnd</th>
+                        <th>Dealer</th>
+                        </tr>
+                </thead>
+                <tbody id="table-body">
+                    </tbody>
+                <tfoot>
+                    <tr id="table-totals" style="font-weight: bold; background: rgba(255,255,255,0.1);">
+                        </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
 </div>
 
-<div id="startScreen" class="card hidden">
-<h3>Start Game</h3>
-<select id="startDealer"></select>
-<button onclick="startGame()">Start</button>
-</div>
-
-<div id="gameUI" class="hidden">
-<div class="card">
-<h3 id="dealerInfo"></h3>
-<button onclick="toggleAdd()">Add Round</button>
-<button onclick="toggleEnd()">End Game</button>
-<button onclick="undoRound()">Undo</button>
-</div>
-
-<div class="card">
-<table id="scoreTable">
-<tr>
-<th>#</th><th>Dealer</th>
-<th>G ⭐</th>
-<th>S ⭐</th>
-<th>D ⭐</th>
-<th>M ⭐</th>
-</tr>
-</table>
-</div>
-
-<div id="addModule" class="card hidden">
-<select id="mode">
-<option value="team">Team</option>
-<option value="manual">Manual</option>
-</select>
-
-<div id="teamMode">
-<select id="p1"></select>
-<select id="p2"></select>
-<input id="points" type="number" placeholder="Points">
-</div>
-
-<div id="manualMode" class="hidden">
-<input id="g" placeholder="G">
-<input id="s" placeholder="S">
-<input id="d" placeholder="D">
-<input id="m" placeholder="M">
-</div>
-
-<label><input type="checkbox" id="starAll"> Star All (double)</label>
-<button onclick="addRound()">Confirm</button>
-</div>
-
-<div id="endModule" class="card hidden">
-<input id="threshold" placeholder="Points threshold">
-<button onclick="setThreshold()">Set Threshold</button>
-<br>
-<select id="skisSelect"></select>
-<button onclick="setSkis()">Set Skis</button>
-<br>
-<button onclick="endGameManual()">End Now</button>
-</div>
-
-</div>
-
-<div id="popup" class="popup hidden">
-<div class="popup-inner">
-<h2 id="popupText"></h2>
-<button onclick="closePopup()">OK</button>
-</div>
-</div>
-
+<div id="winner-modal" class="modal-overlay hidden">
+    <div id="winner-content" class="modal-content">
+        <h2 id="winner-title">Winner!</h2>
+        <p id="winner-name" style="font-size: 1.5em; margin: 15px 0;"></p>
+        <p id="winner-score"></p>
+        <button onclick="app.closeModalAndHome()" style="margin-top: 20px;">Return Home</button>
+    </div>
 </div>
 
 <script>
-// FIX: avoid redeclaration error
-let supabaseClient;
-if (!window._supabaseInitialized) {
-  supabaseClient = window.supabase.createClient(
-    "https://kkgaceamcqqfacygtvtr.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c"
-  );
-  window._supabaseInitialized = true;
-} else {
-  supabaseClient = window.supabase;
-}
+// Prevent redeclaration errors by encapsulating in an object
+const app = {
+    // DB Config
+    supabaseUrl: 'https://kkgaceamcqqfacygtvtr.supabase.co',
+    supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
+    db: null,
 
-let players=["Gordana","Stefi","Dimi","Mile"];
-let scores,history,round,dealerIndex,stars,modeType,gameId,threshold=null,skis=null;
+    // State
+    players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
+    currentGameId: null,
+    currentDealerIndex: 0,
+    rounds: [],
+    stars: { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 },
+    endSettings: { type: 'manual', target: null },
+    isProcessing: false,
 
-function init(){
- players.forEach(p=>{
-  startDealer.innerHTML+=`<option>${p}</option>`;
-  p1.innerHTML+=`<option>${p}</option>`;
-  p2.innerHTML+=`<option>${p}</option>`;
-  skisSelect.innerHTML+=`<option>${p}</option>`;
- });
- reset();
-}
+    init() {
+        // Init Supabase client
+        this.db = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+        
+        // Populate dropdowns
+        const p1Sel = document.getElementById('team-p1');
+        const p2Sel = document.getElementById('team-p2');
+        const dealerSel = document.getElementById('starting-dealer');
+        const skisSel = document.getElementById('skis-player');
+        const manualDiv = document.getElementById('manual-inputs');
+        
+        this.players.forEach(p => {
+            p1Sel.innerHTML += `<option value="${p}">${p}</option>`;
+            p2Sel.innerHTML += `<option value="${p}">${p}</option>`;
+            dealerSel.innerHTML += `<option value="${p}">${p}</option>`;
+            skisSel.innerHTML += `<option value="${p}">${p}</option>`;
+            
+            manualDiv.innerHTML += `
+                <div>
+                    <label>${p} Points:</label>
+                    <input type="number" id="manual-${p}" value="0">
+                </div>
+            `;
+        });
+        
+        // Set default partner to different player
+        p2Sel.selectedIndex = 1;
+    },
 
-function setMode(m){
- modeType=m;
- modeScreen.classList.add("hidden");
- if(m==='enter') startScreen.classList.remove("hidden");
- else loadGames();
-}
+    setLoading(active) {
+        this.isProcessing = active;
+        document.getElementById('loader').classList.toggle('hidden', !active);
+    },
 
-function startGame(){
- dealerIndex=players.indexOf(startDealer.value);
- startScreen.classList.add("hidden");
- gameUI.classList.remove("hidden");
- reset();
- createGame();
- updateDealer();
-}
+    // UI Navigation
+    hideAllScreens() {
+        ['home-screen', 'setup-screen', 'watch-screen', 'game-screen'].forEach(id => {
+            document.getElementById(id).classList.add('hidden');
+        });
+    },
+    showHome() { this.hideAllScreens(); document.getElementById('home-screen').classList.remove('hidden'); },
+    showSetup() { this.hideAllScreens(); document.getElementById('setup-screen').classList.remove('hidden'); },
+    
+    toggleEndConditionInputs() {
+        const type = document.getElementById('end-condition').value;
+        document.getElementById('points-input-group').classList.toggle('hidden', type !== 'points');
+        document.getElementById('skis-input-group').classList.toggle('hidden', type !== 'skis');
+    },
 
-function reset(){
- scores={Gordana:0,Stefi:0,Dimi:0,Mile:0};
- stars={Gordana:0,Stefi:0,Dimi:0,Mile:0};
- history=[];round=0;
- scoreTable.innerHTML=`<tr><th>#</th><th>Dealer</th><th>G ⭐</th><th>S ⭐</th><th>D ⭐</th><th>M ⭐</th></tr>`;
-}
+    toggleModule(id) {
+        document.getElementById(id).classList.toggle('hidden');
+    },
 
-function toggleAdd(){addModule.classList.toggle('hidden');}
-function toggleEnd(){endModule.classList.toggle('hidden');}
+    toggleInputMode() {
+        const isTeam = document.querySelector('input[name="input-mode"]:checked').value === 'team';
+        document.getElementById('team-inputs').classList.toggle('hidden', !isTeam);
+        document.getElementById('manual-inputs').classList.toggle('hidden', isTeam);
+    },
 
-function addRound(){
- history.push(JSON.parse(JSON.stringify({scores,stars})));
- let double = starAll.checked;
+    // Core Logic
+    async startGame() {
+        if(this.isProcessing) return;
+        this.setLoading(true);
 
- if(mode.value==='team'){
-  let pts=+points.value||0;
-  if(double) pts*=2;
-  scores[p1.value]+=pts;
-  scores[p2.value]+=pts;
- }else{
-  let vals={Gordana:+g.value||0,Stefi:+s.value||0,Dimi:+d.value||0,Mile:+m.value||0};
-  players.forEach(pl=>{
-    let val=vals[pl];
-    if(double) val*=2;
-    scores[pl]+=val;
-  });
- }
+        const dealerName = document.getElementById('starting-dealer').value;
+        this.currentDealerIndex = this.players.indexOf(dealerName);
+        this.rounds = [];
+        this.stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
 
- if(double) players.forEach(p=>stars[p]++);
+        // End Settings
+        const endType = document.getElementById('end-condition').value;
+        if(endType === 'points') this.endSettings = { type: 'points', target: parseInt(document.getElementById('points-threshold').value) };
+        else if(endType === 'skis') this.endSettings = { type: 'skis', target: document.getElementById('skis-player').value };
+        else this.endSettings = { type: 'manual', target: null };
 
- round++;
- let r=scoreTable.insertRow();
- r.insertCell(0).innerText=round;
- r.insertCell(1).innerText=players[dealerIndex];
- players.forEach(p=>r.insertCell(-1).innerText=scores[p]);
+        try {
+            const { data, error } = await this.db.from('games').insert([{ status: 'active' }]).select('id').single();
+            if (error) throw error;
+            this.currentGameId = data.id;
+            
+            this.hideAllScreens();
+            document.getElementById('game-screen').classList.remove('hidden');
+            this.renderTable();
+        } catch (err) {
+            alert('Failed to start game: ' + err.message);
+        } finally {
+            this.setLoading(false);
+        }
+    },
 
- dealerIndex=(dealerIndex+1)%4;
- updateDealer();
- logRound();
- checkEnd();
-}
+    async submitRound() {
+        if(this.isProcessing) return;
+        this.setLoading(true);
 
-function updateDealer(){dealerInfo.innerText="Dealer: "+players[dealerIndex];}
+        const isTeam = document.querySelector('input[name="input-mode"]:checked').value === 'team';
+        const starAll = document.getElementById('star-all').checked;
+        const multiplier = starAll ? 2 : 1;
+        
+        let roundScores = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
 
-function undoRound(){
- if(!history.length)return;
- let prev=history.pop();
- scores=prev.scores;stars=prev.stars;
- scoreTable.deleteRow(-1);
- round--;
-}
+        if (isTeam) {
+            const p1 = document.getElementById('team-p1').value;
+            const p2 = document.getElementById('team-p2').value;
+            const pts = parseInt(document.getElementById('team-points').value) || 0;
+            
+            roundScores[p1] += (pts * multiplier);
+            if(p1 !== p2) roundScores[p2] += (pts * multiplier);
+        } else {
+            this.players.forEach(p => {
+                const pts = parseInt(document.getElementById(`manual-${p}`).value) || 0;
+                roundScores[p] += (pts * multiplier);
+            });
+        }
 
-function setThreshold(){threshold=+document.getElementById('threshold').value;}
-function setSkis(){skis=skisSelect.value;}
-function endGameManual(){finishGame(getWinner());}
+        const roundData = {
+            game_id: this.currentGameId,
+            round_number: this.rounds.length + 1,
+            scores: {
+                dealer: this.players[this.currentDealerIndex],
+                points: roundScores,
+                starred: starAll
+            }
+        };
 
-function checkEnd(){
- let win=null;
- if(threshold) players.forEach(p=>{if(scores[p]>=threshold)win=p});
- if(skis && players[dealerIndex]===skis) win=getWinner();
- if(win) finishGame(win);
-}
+        try {
+            const { data, error } = await this.db.from('rounds').insert([roundData]).select('id').single();
+            if (error) throw error;
 
-function getWinner(){return players.reduce((a,b)=>scores[a]>scores[b]?a:b);}
+            // Update local state
+            this.rounds.push({ ...roundData, id: data.id });
+            if (starAll) this.players.forEach(p => this.stars[p]++);
+            
+            // Advance Dealer
+            this.currentDealerIndex = (this.currentDealerIndex + 1) % 4;
+            
+            // Reset inputs
+            document.getElementById('team-points').value = '';
+            this.players.forEach(p => document.getElementById(`manual-${p}`).value = 0);
+            document.getElementById('star-all').checked = false;
 
-function finishGame(w){
- popupText.innerText=(w==="Dimi"||w==="Mile")? w+" BEST PRO PLAYER!!!" : w+" wins";
- popup.classList.remove('hidden');
- saveGame(w);
-}
+            this.renderTable();
+            this.checkEndConditions();
 
-function closePopup(){popup.classList.add('hidden');}
+        } catch (err) {
+            alert('Failed to save round: ' + err.message);
+        } finally {
+            this.setLoading(false);
+        }
+    },
 
-// SUPABASE
-async function createGame(){
- let {data,error}=await supabaseClient.from('games').insert({status:'active'}).select();
- if(error){console.error(error);return;}
- gameId=data[0].id;
-}
+    async undoLastRound() {
+        if(this.isProcessing || this.rounds.length === 0) return;
+        this.setLoading(true);
 
-async function logRound(){
- if(!gameId) return;
- await supabaseClient.from('rounds').insert({game_id:gameId,round,scores});
-}
+        const lastRound = this.rounds[this.rounds.length - 1];
 
-async function saveGame(winner){
- if(!gameId) return;
- await supabaseClient.from('games').update({status:'finished',winner}).eq('id',gameId);
-}
+        try {
+            const { error } = await this.db.from('rounds').delete().eq('id', lastRound.id);
+            if (error) throw error;
 
-async function loadGames(){
- let {data,error}=await supabaseClient.from('games').select('*');
- if(error){console.error(error);return;}
- console.log(data);
-}
+            // Revert state
+            this.rounds.pop();
+            if (lastRound.scores.starred) {
+                this.players.forEach(p => this.stars[p]--);
+            }
+            
+            // Revert Dealer (handling negative modulo in JS)
+            this.currentDealerIndex = (this.currentDealerIndex - 1 + 4) % 4;
+            
+            this.renderTable();
+        } catch (err) {
+            alert('Failed to undo: ' + err.message);
+        } finally {
+            this.setLoading(false);
+        }
+    },
 
-init();
+    renderTable() {
+        const thead = document.getElementById('table-header');
+        thead.innerHTML = `<th>Rnd</th><th>Dealer</th>` + this.players.map(p => 
+            `<th>${p} ${'<span class="star">★</span>'.repeat(this.stars[p])}</th>`
+        ).join('');
+
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+        
+        let totals = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+
+        this.rounds.forEach(r => {
+            const tr = document.createElement('tr');
+            let html = `<td>${r.round_number}</td><td>${r.scores.dealer}</td>`;
+            
+            this.players.forEach(p => {
+                const pts = r.scores.points[p] || 0;
+                totals[p] += pts;
+                html += `<td>${pts}</td>`;
+            });
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+        });
+
+        // Current active dealer row styling
+        const activeTr = document.createElement('tr');
+        activeTr.style.border = '2px dashed var(--secondary-color)';
+        activeTr.innerHTML = `<td>Next</td><td style="color: var(--secondary-color); font-weight: bold;">${this.players[this.currentDealerIndex]}</td><td colspan="4">Waiting...</td>`;
+        tbody.appendChild(activeTr);
+
+        const tfoot = document.getElementById('table-totals');
+        tfoot.innerHTML = `<td colspan="2">TOTAL</td>` + this.players.map(p => `<td>${totals[p]}</td>`).join('');
+        
+        // Store totals for end game logic
+        this.currentTotals = totals;
+    },
+
+    checkEndConditions() {
+        if (!this.currentTotals) return;
+        
+        // Check Points Threshold
+        if (this.endSettings.type === 'points') {
+            const maxPoints = Math.max(...Object.values(this.currentTotals));
+            if (maxPoints >= this.endSettings.target) {
+                this.endGame();
+            }
+        }
+        
+        // Check Skis (Has a full rotation happened, and is it the target's turn to deal?)
+        if (this.endSettings.type === 'skis') {
+            if (this.rounds.length > 0 && this.players[this.currentDealerIndex] === this.endSettings.target) {
+                this.endGame();
+            }
+        }
+    },
+
+    async endGame() {
+        if(this.isProcessing) return;
+        this.setLoading(true);
+
+        // Find winner
+        let winnerName = this.players[0];
+        let highest = this.currentTotals[winnerName];
+
+        this.players.forEach(p => {
+            if(this.currentTotals[p] > highest) {
+                highest = this.currentTotals[p];
+                winnerName = p;
+            }
+        });
+
+        try {
+            await this.db.from('games').update({ status: 'finished', winner: winnerName }).eq('id', this.currentGameId);
+            
+            // Show Winner UI
+            const modal = document.getElementById('winner-modal');
+            const content = document.getElementById('winner-content');
+            
+            document.getElementById('winner-name').innerText = winnerName;
+            document.getElementById('winner-score').innerText = `Winning Score: ${highest}`;
+            
+            if (winnerName === 'Dimi' || winnerName === 'Mile') {
+                content.className = 'modal-content pro-winner';
+                document.getElementById('winner-title').innerText = 'BEST PRO PLAYER';
+            } else {
+                content.className = 'modal-content';
+                document.getElementById('winner-title').innerText = 'Game Over! Winner:';
+            }
+            
+            modal.classList.remove('hidden');
+
+        } catch (err) {
+            alert('Failed to finalize game: ' + err.message);
+        } finally {
+            this.setLoading(false);
+        }
+    },
+
+    closeModalAndHome() {
+        document.getElementById('winner-modal').classList.add('hidden');
+        this.showHome();
+    },
+
+    // Watch Score Feature
+    async showWatch() {
+        if(this.isProcessing) return;
+        this.setLoading(true);
+        this.hideAllScreens();
+        
+        const watchScreen = document.getElementById('watch-screen');
+        const listDiv = document.getElementById('games-list');
+        listDiv.innerHTML = '<p>Loading games...</p>';
+        watchScreen.classList.remove('hidden');
+
+        try {
+            const { data, error } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(10);
+            if (error) throw error;
+
+            if (data.length === 0) {
+                listDiv.innerHTML = '<p>No games found in database.</p>';
+                return;
+            }
+
+            listDiv.innerHTML = data.map(g => `
+                <div class="card" style="border-left: 4px solid ${g.status === 'active' ? 'var(--secondary-color)' : 'var(--primary-color)'}">
+                    <p><strong>Status:</strong> ${g.status.toUpperCase()}</p>
+                    <p><strong>Created:</strong> ${new Date(g.created_at).toLocaleString()}</p>
+                    ${g.winner ? `<p style="color: var(--star-color)"><strong>Winner:</strong> ${g.winner}</p>` : ''}
+                </div>
+            `).join('');
+            
+        } catch (err) {
+            listDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`;
+        } finally {
+            this.setLoading(false);
+        }
+    }
+};
+
+// Initialize App on Load
+document.addEventListener('DOMContentLoaded', () => {
+    app.init();
+});
 </script>
-
-<!-- TEST CASES:
-1. Start game -> no console error (supabase init once)
-2. Add round team mode -> only 2 players change
-3. Star all -> doubles points
-4. Undo -> restores previous scores
-5. Threshold -> triggers popup
-6. Manual end -> popup appears
--->
-
 </body>
 </html>
