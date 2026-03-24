@@ -173,21 +173,41 @@ const watchApp = {
         const body = document.getElementById('table-body');
         const totals = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
 
-        body.innerHTML = '';
+        // Build the HTML string first to prevent layout thrashing on every row
+        let newHtml = ''; 
+
         rounds.forEach(r => {
             if (r.scores.type === 'global_star') {
                 this.players.forEach(p => stars[p]++);
-                body.innerHTML += `<tr class="star-row"><td colspan="6">🌟 GLOBAL STAR ADDED</td></tr>`;
+                newHtml += `<tr class="star-row"><td colspan="6">🌟 GLOBAL STAR ADDED</td></tr>`;
             } else {
                 let html = `<td>${r.round_number}</td><td style="color:var(--accent)">${r.scores.dealer}</td>`;
+                
+                // Normalize star_spent_by to an array to safely handle multiple spenders
+                let spenders = [];
+                if (r.scores.star_spent_by && r.scores.star_spent_by !== 'none') {
+                    spenders = Array.isArray(r.scores.star_spent_by) ? r.scores.star_spent_by : [r.scores.star_spent_by];
+                }
+
                 this.players.forEach(p => {
-                    const pts = r.scores.points[p] || 0; totals[p] += pts;
-                    html += `<td style="color:${pts < 0 ? '#ff5252' : '#fff'}">${pts}</td>`;
+                    const pts = r.scores.points[p] || 0; 
+                    totals[p] += pts;
+                    
+                    let starIndicator = '';
+                    // Check if player spent a star and has stars to spend
+                    if (spenders.includes(p) && stars[p] > 0) {
+                        stars[p]--; // Safely decrement
+                        starIndicator = ' <span style="font-size: 1.2rem; filter: drop-shadow(0 0 5px var(--accent));">⭐</span>';
+                    }
+
+                    html += `<td style="color:${pts < 0 ? '#ff5252' : '#fff'}">${pts}${starIndicator}</td>`;
                 });
-                body.innerHTML += `<tr>${html}</tr>`;
-                if (r.scores.star_spent_by && r.scores.star_spent_by !== 'none') stars[r.scores.star_spent_by]--;
+                newHtml += `<tr>${html}</tr>`;
             }
         });
+
+        // Update DOM once
+        body.innerHTML = newHtml;
 
         document.getElementById('table-header').innerHTML = '<th>#</th><th>Dealer</th>' + 
             this.players.map(p => `<th>${p}<br><span style="color:var(--accent)">⭐ ${stars[p]}</span></th>`).join('');
@@ -195,9 +215,10 @@ const watchApp = {
         document.getElementById('table-totals').innerHTML = `<tr><td colspan="2">TOTAL</td>` + 
             this.players.map(p => `<td>${totals[p]}</td>`).join('') + `</tr>`;
 
+        // Changed to smooth scrolling for a better broadcast feel
         const box = document.getElementById('scroll-box');
-        box.scrollTop = box.scrollHeight;
-    },
+        box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+    }
 
     showWinner(name) {
         document.getElementById('winner-name').innerText = name;
