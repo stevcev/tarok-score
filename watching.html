@@ -6,7 +6,6 @@
     <title>Tarok Tracker: Watch Mode</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* REUSE THE SAME CSS FROM YOUR MAIN FILE FOR CONSISTENCY */
         :root { --bg-table: #1c3d2f; --bg-dark: #0f2027; --surface-color: #fdfbf7; --primary-color: #d32f2f; --secondary-color: #1a1a1a; --accent-color: #ffd700; --text-dark: #212121; --text-light: #ffffff; --border-radius: 12px; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body { background: linear-gradient(135deg, var(--bg-dark), var(--bg-table)); color: var(--text-light); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
@@ -21,6 +20,20 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; font-size: 0.9em; }
         #loader { text-align: center; margin: 10px; color: var(--accent-color); font-weight: bold; }
+        
+        /* New Rule Style */
+        .rule-badge { 
+            margin-top: 15px; 
+            padding: 15px; 
+            background: #fff3e0; 
+            border-left: 4px solid #ff9800; 
+            border-radius: 4px; 
+            font-size: 0.9em; 
+            color: #5d4037;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -36,16 +49,28 @@
         <div id="games-list"></div>
     </div>
 
-    <div id="view-screen" class="card-panel table-container hidden">
-        <div class="flex-row" style="justify-content: space-between;">
-            <h3 id="view-title">Game Score</h3>
-            <button class="outline" onclick="location.reload()">Back to List</button>
+    <div id="view-screen" class="hidden">
+        <div class="card-panel table-container">
+            <div class="flex-row" style="justify-content: space-between;">
+                <h3 id="view-title">Game Score</h3>
+                <button class="outline" onclick="watchApp.stopWatching()">Back to List</button>
+            </div>
+            <table id="score-table">
+                <thead><tr id="table-header"></tr></thead>
+                <tbody id="table-body"></tbody>
+                <tfoot><tr id="table-totals" style="background: #f1f8e9; font-weight: bold;"></tr></tfoot>
+            </table>
         </div>
-        <table id="score-table">
-            <thead><tr id="table-header"></tr></thead>
-            <tbody id="table-body"></tbody>
-            <tfoot><tr id="table-totals" style="background: #f1f8e9; font-weight: bold;"></tr></tfoot>
-        </table>
+
+        <div id="rule-panel" class="card-panel" style="padding: 15px;">
+            <div class="rule-badge">
+                <span style="font-size: 1.5em;">🏁</span>
+                <div>
+                    <strong>End of Game Rule:</strong><br>
+                    <span id="rule-text">Loading rule...</span>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -55,6 +80,7 @@ const watchApp = {
     supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
     db: null,
     players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
+    currentChannel: null, // Holds the real-time subscription
 
     async init() {
         this.db = supabase.createClient(this.supabaseUrl, this.supabaseKey);
@@ -77,17 +103,52 @@ const watchApp = {
 
     async viewGame(id) {
         this.setLoading(true);
+        
+        // 1. Fetch Game Metadata (for the end rule)
+        const { data: game } = await this.db.from('games').select('*').eq('id', id).single();
+        document.getElementById('rule-text').innerText = game.end_rule || "No specific rule set for this game.";
+        
+        // 2. Fetch Initial Rounds
         const { data: rounds } = await this.db.from('rounds').select('*').eq('game_id', id).order('round_number', { ascending: true });
         
         document.getElementById('watch-screen').classList.add('hidden');
         document.getElementById('view-screen').classList.remove('hidden');
         
         this.renderTable(rounds);
+
+        // 3. Setup Real-time if game is active
+        if (game.status === 'active') {
+            this.setupSubscription(id);
+        }
+
         this.setLoading(false);
     },
 
+    setupSubscription(gameId) {
+        // Clean up any existing subscription first
+        if (this.currentChannel) this.db.removeChannel(this.currentChannel);
+
+        this.currentChannel = this.db.channel(`game-${gameId}`)
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'rounds', 
+                filter: `game_id=eq.${gameId}` 
+            }, async (payload) => {
+                console.log('New round detected!', payload);
+                // Refresh data when a new round is inserted
+                const { data: updatedRounds } = await this.db.from('rounds').select('*').eq('game_id', gameId).order('round_number', { ascending: true });
+                this.renderTable(updatedRounds);
+            })
+            .subscribe();
+    },
+
+    stopWatching() {
+        if (this.currentChannel) this.db.removeChannel(this.currentChannel);
+        location.reload(); // Simplest way to reset state
+    },
+
     renderTable(rounds) {
-        // Simple logic to calculate stars for display
         let stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
         const header = document.getElementById('table-header');
         const body = document.getElementById('table-body');
