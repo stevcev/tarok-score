@@ -10,7 +10,7 @@
             --bg-dark: #0a0e12; --surface: #161b22; --accent: #ffd700; 
             --primary: #4caf50; --text: #ffffff; --header-bg: #1f2937;
             --negative: #ff5252; --rule-blue: #2196f3; --rule-purple: #9c27b0;
-            --news-red: #d32f2f; --news-dark: #111;
+            --news-red: #d32f2f; --news-dark: #0a0a0a;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
@@ -57,26 +57,31 @@
 
         tfoot { position: sticky; bottom: 0; background: var(--primary); font-size: 2.2rem; font-weight: bold; }
 
-        /* --- NEW TV BROADCAST GRAPHICS --- */
+        /* --- FULL SCREEN BROADCAST GRAPHICS --- */
+        #fullscreen-alert {
+            position: fixed; top: 0; left: -100%; width: 100%; height: 100%;
+            background: radial-gradient(circle, #2a2a2a 0%, var(--news-dark) 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 5000;
+            transition: left 0.5s cubic-bezier(0.85, 0, 0.15, 1);
+            border-left: 20px solid var(--accent);
+            border-right: 20px solid var(--accent);
+        }
+        #fullscreen-alert.active { left: 0; }
+        #fullscreen-alert.exit { left: 100%; }
+
+        .alert-tag {
+            font-size: 3.5rem; font-weight: 900; padding: 15px 60px; text-transform: uppercase; 
+            letter-spacing: 8px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .alert-tag.red { background: var(--news-red); color: white; }
+        .alert-tag.gold { background: var(--accent); color: black; }
+        .alert-tag.blue { background: var(--rule-blue); color: white; }
         
-        #broadcast-banner {
-            position: fixed; bottom: 10%; left: -100%; z-index: 5000;
-            display: flex; align-items: stretch; height: 100px;
-            box-shadow: 15px 15px 30px rgba(0,0,0,0.8);
-            transition: left 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        #broadcast-banner.active { left: 0; }
-        .banner-tag {
-            background: var(--news-red); color: white; font-weight: 900; font-size: 2.5rem;
-            padding: 0 40px; display: flex; align-items: center; text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .banner-tag.gold { background: var(--accent); color: black; }
-        .banner-tag.blue { background: var(--rule-blue); color: white; }
-        .banner-content {
-            background: var(--news-dark); color: white; font-weight: bold; font-size: 3.5rem;
-            padding: 0 50px 0 30px; display: flex; align-items: center; border-right: 10px solid var(--accent);
-            text-transform: uppercase; white-space: nowrap;
+        .alert-text {
+            font-size: 9rem; font-weight: 900; text-align: center; color: white; 
+            text-transform: uppercase; line-height: 1.1;
+            text-shadow: 0 10px 20px rgba(0,0,0,0.9);
         }
 
         #winner-overlay, #stats-overlay {
@@ -93,17 +98,17 @@
         @keyframes winner-glow { from { box-shadow: 0 0 20px var(--accent); } to { box-shadow: 0 0 80px var(--accent); } }
 
         .stats-container { width: 80%; max-width: 1000px; text-align: center; }
-        .stats-header { font-size: 4rem; color: var(--accent); margin-bottom: 40px; text-transform: uppercase; letter-spacing: 5px; border-bottom: 2px solid #333; padding-bottom: 20px;}
+        .stats-header { font-size: 5rem; color: var(--accent); margin-bottom: 40px; text-transform: uppercase; letter-spacing: 5px; border-bottom: 2px solid #333; padding-bottom: 20px;}
         .podium-row {
             display: flex; justify-content: space-between; align-items: center;
-            background: var(--surface); margin-bottom: 15px; padding: 20px 40px;
-            border-radius: 15px; font-size: 2.5rem; font-weight: bold;
+            background: var(--surface); margin-bottom: 15px; padding: 30px 50px;
+            border-radius: 15px; font-size: 3rem; font-weight: bold;
             transform: translateX(-50px); opacity: 0; animation: statSlide 0.5s ease forwards;
         }
         @keyframes statSlide { to { transform: translateX(0); opacity: 1; } }
-        .podium-row.gold { border: 3px solid #ffd700; color: #ffd700; }
-        .podium-row.silver { border: 2px solid #c0c0c0; color: #c0c0c0; }
-        .podium-row.bronze { border: 2px solid #cd7f32; color: #cd7f32; }
+        .podium-row.gold { border: 4px solid #ffd700; color: #ffd700; }
+        .podium-row.silver { border: 3px solid #c0c0c0; color: #c0c0c0; }
+        .podium-row.bronze { border: 3px solid #cd7f32; color: #cd7f32; }
         
         .hidden { display: none !important; }
         .star-row { background: rgba(255, 215, 0, 0.1); color: var(--accent); font-weight: bold; font-size: 1.4rem; }
@@ -117,9 +122,9 @@
         <p style="margin-top: 10px; opacity: 0.6;">Awaiting Game State from Database</p>
     </div>
 
-    <div id="broadcast-banner">
-        <div id="banner-tag" class="banner-tag">UPDATE</div>
-        <div id="banner-content" class="banner-content">SCORES CALCULATED</div>
+    <div id="fullscreen-alert">
+        <div id="alert-tag" class="alert-tag">UPDATE</div>
+        <div id="alert-text" class="alert-text">SCORES CALCULATED</div>
     </div>
 
     <div class="tv-container">
@@ -150,8 +155,8 @@
     <div id="winner-overlay">
         <div class="winner-card">
             <h1 style="font-size: 10rem;">👑</h1>
-            <h2 id="winner-name" style="font-size: 6rem; color: var(--accent); text-transform: uppercase;">-</h2>
-            <p style="font-size: 2rem; margin-top: 20px;">GAME FINISHED</p>
+            <h2 id="winner-name" style="font-size: 8rem; color: var(--accent); text-transform: uppercase;">-</h2>
+            <p style="font-size: 3rem; margin-top: 20px;">GAME FINISHED</p>
         </div>
     </div>
 
@@ -175,7 +180,8 @@ const watchApp = {
     currentLeader: null,
     isInitialRender: true,
     finalTotals: {},
-    bannerTimeout: null,
+    alertQueue: [],
+    isAlertPlaying: false,
 
     // Enhanced Audio Engine
     audioCtx: new (window.AudioContext || window.webkitAudioContext)(),
@@ -200,8 +206,8 @@ const watchApp = {
         this.playTone(880, 'square', 0.3, 0.1);
         
         this.playTone(440, 'sawtooth', 0.45, 0.8);
-        this.playTone(554, 'sawtooth', 0.45, 0.8); // Major third
-        this.playTone(659, 'sawtooth', 0.45, 0.8); // Perfect fifth
+        this.playTone(554, 'sawtooth', 0.45, 0.8); 
+        this.playTone(659, 'sawtooth', 0.45, 0.8); 
     },
     playVictoryFanfare() {
         // Triumphant arpeggio
@@ -210,7 +216,7 @@ const watchApp = {
         notes.forEach((freq, i) => {
             const dur = i === notes.length - 1 ? 1.5 : 0.2;
             this.playTone(freq, 'triangle', times[i], dur);
-            this.playTone(freq * 1.01, 'sine', times[i], dur); // Detune for thickness
+            this.playTone(freq * 1.01, 'sine', times[i], dur); 
         });
     },
     playStatsJingle() {
@@ -260,8 +266,7 @@ const watchApp = {
         if (game.status === 'finished') {
             this.showWinner(game.winner);
         } else {
-            // Trigger start game broadcast graphic
-            setTimeout(() => this.triggerBroadcast('START', 'MATCH BEGINS', 'gold'), 1000);
+            setTimeout(() => this.queueBroadcast('START', 'MATCH BEGINS', 'gold'), 1000);
         }
         
         const { data: rounds } = await this.db.from('rounds').select('*').eq('game_id', game.id).order('round_number', { ascending: true });
@@ -286,9 +291,9 @@ const watchApp = {
         this.db.channel(`tv-live-${gameId}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` }, async (payload) => {
                 if (payload.new.scores.type !== 'global_star') {
-                    this.triggerBroadcast('ROUND SCORED', `ROUND ${payload.new.round_number}`, 'blue');
+                    this.queueBroadcast('ROUND SCORED', `ROUND ${payload.new.round_number}`, 'blue');
                 } else {
-                    this.triggerBroadcast('BONUS', 'GLOBAL STAR ADDED', 'gold');
+                    this.queueBroadcast('BONUS', 'GLOBAL STAR ADDED', 'gold');
                 }
                 const { data: updatedRounds } = await this.db.from('rounds').select('*').eq('game_id', gameId).order('round_number', { ascending: true });
                 setTimeout(() => this.renderTable(updatedRounds), 600);
@@ -301,25 +306,45 @@ const watchApp = {
             .subscribe();
     },
 
-    // New Universal Broadcast Graphic Trigger
-    triggerBroadcast(tag, text, theme = 'red') {
-        const banner = document.getElementById('broadcast-banner');
-        const tagEl = document.getElementById('banner-tag');
-        const contentEl = document.getElementById('banner-content');
+    // Safely queue multiple full-screen broadcasts so they don't overlap
+    queueBroadcast(tag, text, theme) {
+        this.alertQueue.push({ tag, text, theme });
+        if (!this.isAlertPlaying) this.playNextBroadcast();
+    },
+
+    playNextBroadcast() {
+        if (this.alertQueue.length === 0) {
+            this.isAlertPlaying = false;
+            return;
+        }
         
-        clearTimeout(this.bannerTimeout);
+        this.isAlertPlaying = true;
+        const currentAlert = this.alertQueue.shift();
+        
+        const alertEl = document.getElementById('fullscreen-alert');
+        const tagEl = document.getElementById('alert-tag');
+        const textEl = document.getElementById('alert-text');
         
         // Setup Styling
-        tagEl.className = `banner-tag ${theme}`;
-        tagEl.innerText = tag;
-        contentEl.innerText = text;
+        tagEl.className = `alert-tag ${currentAlert.theme}`;
+        tagEl.innerText = currentAlert.tag;
+        textEl.innerText = currentAlert.text;
 
         this.playNewsAlert();
 
-        banner.classList.add('active');
-        this.bannerTimeout = setTimeout(() => {
-            banner.classList.remove('active');
-        }, 5000);
+        // Slide in
+        alertEl.classList.remove('exit');
+        alertEl.classList.add('active');
+        
+        // Hold for 2.5 seconds, then slide out
+        setTimeout(() => {
+            alertEl.classList.add('exit');
+            setTimeout(() => {
+                alertEl.classList.remove('active', 'exit');
+                // Play next alert in queue after a short breather
+                setTimeout(() => this.playNextBroadcast(), 500);
+            }, 500); // Time for exit animation
+        }, 2500);
     },
 
     renderTable(rounds) {
@@ -384,13 +409,11 @@ const watchApp = {
         let leaderNames = currentLeadersArr.join(' & ');
         
         if (!this.isInitialRender && this.currentLeader !== leaderNames && currentLeadersArr.length > 0) {
-            // Delay slightly to not conflict with the round score banner
-            setTimeout(() => {
-                this.triggerBroadcast('NEW LEADER', leaderNames, 'red');
-            }, 5500); 
+            this.queueBroadcast('NEW LEADER', leaderNames, 'red');
         }
+        
         this.currentLeader = leaderNames;
-        this.finalTotals = totals; // Save for the stats screen
+        this.finalTotals = totals; 
         this.isInitialRender = false;
 
         document.getElementById('table-header').innerHTML = '<th>#</th><th>Dealer</th>' + 
