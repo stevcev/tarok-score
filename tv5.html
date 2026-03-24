@@ -232,78 +232,82 @@ const watchApp = {
     },
 
     renderTable(rounds) {
-        // FIXED: Initial Star Tallying
-        // Uses starting_stars from the game object if present, otherwise 0
-        let baseStars = this.currentGame?.starting_stars || 0;
-        let stars = {}; 
-        this.players.forEach(p => stars[p] = baseStars);
-        
-        let totals = {}; 
-        this.players.forEach(p => totals[p] = 0);
-        
-        const body = document.getElementById('table-body');
-        let lastDealer = this.players[0];
-        let newHtml = '';
+    // 1. Initialize Stars and Totals
+    let baseStars = this.currentGame?.starting_stars || 0;
+    let stars = {}; 
+    let totals = {};
+    this.players.forEach(p => {
+        stars[p] = baseStars;
+        totals[p] = 0;
+    });
+    
+    const body = document.getElementById('table-body');
+    let lastDealer = this.players[0];
+    let newHtml = '';
 
-        rounds.forEach((r, idx) => {
-            const isLast = idx === rounds.length - 1;
-            const animationClass = isLast ? 'class="new-row"' : '';
+    rounds.forEach((r, idx) => {
+        const isLast = idx === rounds.length - 1;
+        // Fixed: Use a single class attribute string
+        const animationClass = isLast ? 'new-row' : '';
 
-            // FIXED: Global Star Detection
-            if (r.scores.type === 'global_star') {
+        // 2. Logic for dedicated "Global Star" rounds
+        if (r.scores.type === 'global_star') {
+            this.players.forEach(p => stars[p]++);
+            newHtml += `<tr class="star-row ${animationClass}"><td colspan="6">🌟 GLOBAL STAR ADDED TO ALL</td></tr>`;
+        } else {
+            // 3. Logic for regular point rounds
+            lastDealer = r.scores.dealer;
+            
+            // NEW: Check if a global star was granted via the checkbox in this round
+            if (r.scores.granted_global_star) {
                 this.players.forEach(p => stars[p]++);
-                newHtml += `<tr class="star-row" ${animationClass}><td colspan="6">🌟 GLOBAL STAR ADDED TO ALL</td></tr>`;
-            } else {
-                lastDealer = r.scores.dealer;
-                let rowData = `<td>${r.round_number}</td><td style="color:var(--accent)">${lastDealer}</td>`;
-                
-                let spenders = [];
-                if (r.scores.star_spent_by && r.scores.star_spent_by !== 'none') {
-                    // Support both single string and array from the Index app
-                    spenders = Array.isArray(r.scores.star_spent_by) ? r.scores.star_spent_by : [r.scores.star_spent_by];
-                }
-
-                this.players.forEach(p => {
-                    const pts = r.scores.points[p] || 0; 
-                    totals[p] += pts;
-                    
-                    let starUsedIcon = '';
-                    // Case-insensitive check to ensure Index app data matches local player names
-                    const hasSpent = spenders.some(s => s.toLowerCase() === p.toLowerCase());
-                    
-                    if (hasSpent && stars[p] > 0) {
-                        stars[p]--;
-                        starUsedIcon = ' <span style="font-size:1.2rem; filter:drop-shadow(0 0 5px gold);">⭐</span>';
-                    }
-                    rowData += `<td style="color:${pts < 0 ? 'var(--negative)' : '#fff'}">${pts}${starUsedIcon}</td>`;
-                });
-                newHtml += `<tr ${animationClass}>${rowData}</tr>`;
             }
-        });
 
-        body.innerHTML = newHtml;
+            let rowData = `<td>${r.round_number}</td><td style="color:var(--accent)">${lastDealer}</td>`;
+            
+            // Identify who spent a star (handling string or array)
+            let spenders = [];
+            if (r.scores.star_spent_by && r.scores.star_spent_by !== 'none') {
+                spenders = Array.isArray(r.scores.star_spent_by) ? r.scores.star_spent_by : [r.scores.star_spent_by];
+            }
 
-        // Next Dealer Calculation
-        const nextIndex = (this.players.indexOf(lastDealer) + 1) % this.players.length;
-        document.getElementById('next-dealer-display').innerText = this.players[nextIndex];
+            this.players.forEach(p => {
+                const pts = r.scores.points[p] || 0; 
+                totals[p] += pts;
+                
+                let starUsedIcon = '';
+                const hasSpent = spenders.some(s => s.toLowerCase() === p.toLowerCase());
+                
+                if (hasSpent && stars[p] > 0) {
+                    stars[p]--;
+                    starUsedIcon = ' <span style="font-size:1.2rem; filter:drop-shadow(0 0 5px gold);">⭐</span>';
+                }
+                rowData += `<td style="color:${pts < 0 ? 'var(--negative)' : '#fff'}">${pts}${starUsedIcon}</td>`;
+            });
+            newHtml += `<tr class="${animationClass}">${rowData}</tr>`;
+        }
+    });
 
-        // Leader Standings
-        const maxScore = Math.max(...Object.values(totals));
-        
-        // Update Header with Calculated Stars
-        document.getElementById('table-header').innerHTML = '<th>#</th><th>Dealer</th>' + 
-            this.players.map(p => `<th>${p}<br><span style="color:var(--accent)">⭐ ${stars[p]}</span></th>`).join('');
-        
-        // Update Totals with Crown for leader
-        document.getElementById('table-totals').innerHTML = `<tr><td colspan="2">TOTAL</td>` + 
-            this.players.map(p => {
-                const isLeader = totals[p] === maxScore && maxScore !== 0;
-                return `<td class="leader-cell">${isLeader ? '<span class="crown-icon">👑</span>' : ''}${totals[p]}</td>`;
-            }).join('') + `</tr>`;
+    body.innerHTML = newHtml;
 
-        const box = document.getElementById('scroll-box');
-        box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
-    },
+    // 4. Update Header with the LIVE calculated star counts
+    document.getElementById('table-header').innerHTML = '<th>#</th><th>Dealer</th>' + 
+        this.players.map(p => `<th>${p}<br><span style="color:var(--accent)">⭐ ${stars[p]}</span></th>`).join('');
+
+    // 5. Update Totals and Next Dealer
+    const nextIndex = (this.players.indexOf(lastDealer) + 1) % this.players.length;
+    document.getElementById('next-dealer-display').innerText = this.players[nextIndex];
+
+    const maxScore = Math.max(...Object.values(totals));
+    document.getElementById('table-totals').innerHTML = `<tr><td colspan="2">TOTAL</td>` + 
+        this.players.map(p => {
+            const isLeader = totals[p] === maxScore && maxScore !== 0;
+            return `<td class="leader-cell">${isLeader ? '<span class="crown-icon">👑</span>' : ''}${totals[p]}</td>`;
+        }).join('') + `</tr>`;
+
+    const box = document.getElementById('scroll-box');
+    box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+}
 
     showWinner(name) {
         this.beep(660, 0.4); 
