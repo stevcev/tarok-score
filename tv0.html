@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarok TV: Pro Broadcast Elite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:       #06080a;
+            --surface:  #0d1117;
+            --panel:    #131920;
+            --border:   #1e2a35;
+            --gold:     #f0c040;
+            --gold-dim: #7a6020;
+            --red:      #e03030;
+            --blue:     #2979ff;
+            --green:    #00e676;
+            --text:     #e8edf2;
+            --muted:    #5a6a7a;
+            --scan:     rgba(255,255,255,0.015);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Barlow Condensed', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── SCANLINE OVERLAY ── */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                var(--scan) 0px,
+                var(--scan) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* ══════════════════════════════════════
+           WAITING / PRE-MATCH SCREEN
+        ══════════════════════════════════════ */
+        #waiting-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            z-index: 4000;
+            overflow: hidden;
+        }
+        #waiting-screen.hidden { display: none !important; }
+
+        /* Animated grid background */
+        .hype-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: gridPan 20s linear infinite;
+            opacity: 0.4;
+        }
+        @keyframes gridPan {
+            from { background-position: 0 0; }
+            to   { background-position: 60px 60px; }
+        }
+
+        /* Corner brackets */
+        .bracket {
+            position: absolute;
+            width: 60px; height: 60px;
+            border-color: var(--gold);
+            border-style: solid;
+            opacity: 0.6;
+        }
+        .bracket.tl { top: 30px; left: 30px; border-width: 3px 0 0 3px; }
+        .bracket.tr { top: 30px; right: 30px; border-width: 3px 3px 0 0; }
+        .bracket.bl { bottom: 30px; left: 30px; border-width: 0 0 3px 3px; }
+        .bracket.br { bottom: 30px; right: 30px; border-width: 0 3px 3px 0; }
+
+        .waiting-body {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* Top bar */
+        .hype-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--border);
+        }
+        .hype-logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.4rem;
+            letter-spacing: 6px;
+            color: var(--gold);
+        }
+        .hype-live-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 3px;
+            color: var(--muted);
+        }
+        .live-dot-pre {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--gold);
+            animation: blink 1.4s ease-in-out infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+
+        /* Center hype content */
+        .hype-center {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: row;
+            gap: 0;
+        }
+
+        /* Big countdown / title */
+        .hype-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            position: relative;
+        }
+        .hype-pre-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            letter-spacing: 5px;
+            color: var(--gold);
+            margin-bottom: 20px;
+            animation: pulse-text 2s ease-in-out infinite;
+        }
+        @keyframes pulse-text { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+        .hype-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 9rem;
+            line-height: 0.9;
+            letter-spacing: 8px;
+            text-align: center;
+            color: var(--text);
+            text-shadow: 0 0 60px rgba(240,192,64,0.3);
+        }
+        .hype-title span { color: var(--gold); }
+
+        .hype-sub {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            letter-spacing: 4px;
+            color: var(--muted);
+            margin-top: 30px;
+            text-transform: uppercase;
+        }
+
+        /* Players strip */
+        .hype-players-strip {
+            display: flex;
+            gap: 0;
+            margin-top: 40px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .hype-player-chip {
+            padding: 14px 30px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.8rem;
+            letter-spacing: 3px;
+            border-right: 1px solid var(--border);
+            color: var(--text);
+            position: relative;
+            overflow: hidden;
+        }
+        .hype-player-chip:last-child { border-right: none; }
+        .hype-player-chip::before {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--gold);
+            transform: scaleX(0);
+            transform-origin: left;
+            animation: slideBar 3s ease-in-out infinite;
+        }
+        .hype-player-chip:nth-child(1)::before { animation-delay: 0s; }
+        .hype-player-chip:nth-child(2)::before { animation-delay: 0.75s; }
+        .hype-player-chip:nth-child(3)::before { animation-delay: 1.5s; }
+        .hype-player-chip:nth-child(4)::before { animation-delay: 2.25s; }
+        @keyframes slideBar {
+            0%   { transform: scaleX(0); opacity:1; }
+            50%  { transform: scaleX(1); opacity:1; }
+            100% { transform: scaleX(0); opacity:0; transform-origin:right; }
+        }
+
+        /* Right panel: old stats */
+        .hype-stats-panel {
+            width: 340px;
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 30px 25px;
+            gap: 20px;
+            overflow: hidden;
+        }
+        .hype-stats-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.4rem;
+            letter-spacing: 4px;
+            color: var(--gold);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            opacity: 0;
+            transform: translateX(20px);
+            animation: fadeSlideIn 0.5s ease forwards;
+        }
+        @keyframes fadeSlideIn {
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .stat-name { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; letter-spacing: 2px; }
+        .stat-val  { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--text); }
+        .stat-val.gold { color: var(--gold); }
+
+        /* Scrolling ticker */
+        .hype-ticker {
+            background: var(--gold);
+            color: #000;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.2rem;
+            letter-spacing: 4px;
+            padding: 10px 0;
+            overflow: hidden;
+            white-space: nowrap;
+            border-top: 1px solid var(--border);
+        }
+        .ticker-inner {
+            display: inline-block;
+            animation: ticker 25s linear infinite;
+        }
+        @keyframes ticker {
+            from { transform: translateX(100vw); }
+            to   { transform: translateX(-100%); }
+        }
+
+        /* ══════════════════════════════════════
+           MAIN BROADCAST LAYOUT
+        ══════════════════════════════════════ */
+        .tv-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+
+        /* Top broadcast bar */
+        .broadcast-bar {
+            display: flex;
+            align-items: stretch;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            height: 70px;
+            flex-shrink: 0;
+        }
+        .bar-logo {
+            padding: 0 30px;
+            display: flex;
+            align-items: center;
+            border-right: 1px solid var(--border);
+            background: var(--gold);
+        }
+        .bar-logo-text {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.8rem;
+            letter-spacing: 5px;
+            color: #000;
+        }
+        .bar-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 25px;
+            border-right: 1px solid var(--border);
+        }
+        .live-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--red);
+            box-shadow: 0 0 8px var(--red);
+            animation: blink 1s ease-in-out infinite;
+        }
+        .bar-status-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 3px;
+            color: var(--red);
+            text-transform: uppercase;
+        }
+        .bar-rule {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 25px;
+            border-right: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            color: var(--blue);
+        }
+        #rule-tag { display: none; }
+
+        .bar-spacer { flex: 1; }
+
+        .bar-next-dealer {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 30px;
+            border-left: 1px solid var(--border);
+            text-align: right;
+        }
+        .next-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 3px;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+        .next-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.8rem;
+            letter-spacing: 3px;
+            color: var(--gold);
+            transition: all 0.4s ease;
+        }
+
+        /* ── TABLE ── */
+        .table-frame {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--bg);
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+        .table-frame::-webkit-scrollbar { width: 4px; }
+        .table-frame::-webkit-scrollbar-track { background: transparent; }
+        .table-frame::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        table { width: 100%; border-collapse: collapse; }
+        
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--panel);
+        }
+        thead tr { border-bottom: 2px solid var(--gold); }
+        
+        th {
+            padding: 18px 20px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.3rem;
+            letter-spacing: 3px;
+            color: var(--gold);
+            text-align: center;
+            font-weight: 400;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: background 0.3s ease;
+        }
+        tbody tr:hover { background: rgba(240,192,64,0.04); }
+
+        td {
+            padding: 14px 20px;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+        }
+        td:first-child {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.4rem;
+            color: var(--muted);
+            letter-spacing: 2px;
+        }
+        td:nth-child(2) {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 2px;
+        }
+
+        .neg { color: var(--red) !important; }
+        .leader-cell { position: relative; }
+        .crown-icon { font-size: 0.9rem; position: absolute; top: 2px; left: 50%; transform: translateX(-50%); }
+
+        /* Totals row */
+        .totals-bar {
+            background: var(--panel);
+            border-top: 2px solid var(--gold);
+            flex-shrink: 0;
+        }
+        .totals-bar table { font-size: 1rem; }
+        .totals-bar td {
+            padding: 18px 20px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2rem;
+            letter-spacing: 2px;
+        }
+        .totals-bar td:first-child {
+            color: var(--muted);
+            font-size: 1rem;
+            letter-spacing: 4px;
+        }
+        .totals-bar .leader-total { color: var(--gold); }
+
+        .star-row td {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--gold);
+            padding: 10px 20px;
+            background: rgba(240,192,64,0.08);
+            border-left: 3px solid var(--gold);
+        }
+
+        /* ══════════════════════════════════════
+           NEW ROW ANIMATION
+        ══════════════════════════════════════ */
+        @keyframes rowFlash {
+            0%   { background: rgba(240,192,64,0.25); transform: translateX(-8px); }
+            30%  { background: rgba(240,192,64,0.15); transform: translateX(0); }
+            100% { background: transparent; }
+        }
+        .new-row { animation: rowFlash 1.2s ease-out forwards; }
+
+        /* ══════════════════════════════════════
+           FULLSCREEN BROADCAST ALERT
+        ══════════════════════════════════════ */
+        #fullscreen-alert {
+            position: fixed;
+            inset: 0;
+            z-index: 5000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        /* Cinematic wipe layers */
+        .alert-wipe-top,
+        .alert-wipe-bot {
+            position: absolute;
+            left: 0; right: 0;
+            height: 50%;
+            background: #000;
+            transition: transform 0.45s cubic-bezier(0.77, 0, 0.18, 1);
+        }
+        .alert-wipe-top { top: 0; transform: translateY(-100%); }
+        .alert-wipe-bot { bottom: 0; transform: translateY(100%); }
+
+        #fullscreen-alert.active .alert-wipe-top { transform: translateY(0); }
+        #fullscreen-alert.active .alert-wipe-bot { transform: translateY(0); }
+        #fullscreen-alert.exit .alert-wipe-top   { transform: translateY(-100%); }
+        #fullscreen-alert.exit .alert-wipe-bot   { transform: translateY(100%); }
+
+        /* Accent stripe */
+        .alert-stripe {
+            position: absolute;
+            left: 0; right: 0;
+            height: 6px;
+            top: 50%;
+            margin-top: -3px;
+            transform: scaleX(0);
+            transition: transform 0.3s ease 0.3s;
+        }
+        #fullscreen-alert.active .alert-stripe { transform: scaleX(1); }
+        #fullscreen-alert.exit .alert-stripe    { transform: scaleX(0); transition-delay: 0s; }
+
+        /* Content block */
+        .alert-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity 0.3s ease 0.4s, transform 0.3s ease 0.4s;
+        }
+        #fullscreen-alert.active .alert-content { opacity: 1; transform: scale(1); }
+        #fullscreen-alert.exit .alert-content   { opacity: 0; transform: scale(1.04); transition-delay: 0s; }
+
+        .alert-eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            letter-spacing: 8px;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+        }
+        .alert-main-text {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 10rem;
+            line-height: 0.9;
+            letter-spacing: 6px;
+            color: var(--text);
+            text-shadow: none;
+        }
+
+        /* Themes */
+        .theme-gold .alert-wipe-top,
+        .theme-gold .alert-wipe-bot { background: #1a1400; }
+        .theme-gold .alert-stripe   { background: var(--gold); }
+        .theme-gold .alert-eyebrow  { color: var(--gold); }
+        .theme-gold .alert-main-text { color: var(--gold); }
+
+        .theme-red .alert-wipe-top,
+        .theme-red .alert-wipe-bot { background: #160000; }
+        .theme-red .alert-stripe   { background: var(--red); }
+        .theme-red .alert-eyebrow  { color: var(--red); }
+        .theme-red .alert-main-text { color: #fff; }
+
+        .theme-blue .alert-wipe-top,
+        .theme-blue .alert-wipe-bot { background: #000a1f; }
+        .theme-blue .alert-stripe   { background: var(--blue); }
+        .theme-blue .alert-eyebrow  { color: var(--blue); }
+        .theme-blue .alert-main-text { color: #fff; }
+
+        /* ══════════════════════════════════════
+           WINNER OVERLAY
+        ══════════════════════════════════════ */
+        #winner-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+        }
+        #winner-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .winner-bg-stripes {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+        .winner-stripe {
+            position: absolute;
+            width: 200%;
+            height: 60px;
+            background: var(--gold);
+            opacity: 0.06;
+            transform: rotate(-12deg) translateY(-30px);
+            animation: stripeScroll 4s linear infinite;
+        }
+        .winner-stripe:nth-child(2) { top: 120px; animation-delay: -1s; opacity: 0.04; }
+        .winner-stripe:nth-child(3) { top: 240px; animation-delay: -2s; }
+        .winner-stripe:nth-child(4) { top: 360px; animation-delay: -3s; opacity: 0.04; }
+        .winner-stripe:nth-child(5) { top: 480px; animation-delay: -0.5s; }
+        @keyframes stripeScroll {
+            from { transform: rotate(-12deg) translateX(-200px); }
+            to   { transform: rotate(-12deg) translateX(200px); }
+        }
+
+        .winner-card {
+            position: relative;
+            text-align: center;
+            z-index: 2;
+        }
+        .winner-crown {
+            font-size: 8rem;
+            line-height: 1;
+            animation: crownBob 1.5s ease-in-out infinite;
+            display: block;
+            margin-bottom: 10px;
+        }
+        @keyframes crownBob {
+            0%,100% { transform: translateY(0) rotate(-5deg); }
+            50%      { transform: translateY(-15px) rotate(5deg); }
+        }
+        .winner-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            letter-spacing: 8px;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+        .winner-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 12rem;
+            line-height: 0.85;
+            color: var(--gold);
+            letter-spacing: 6px;
+            text-shadow: 0 0 80px rgba(240,192,64,0.5);
+        }
+        .winner-sub {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            letter-spacing: 6px;
+            color: var(--muted);
+            margin-top: 20px;
+            text-transform: uppercase;
+        }
+
+        /* Particle burst */
+        .confetti-wrap {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        @keyframes confettiFall {
+            0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* ══════════════════════════════════════
+           STATS / PODIUM OVERLAY
+        ══════════════════════════════════════ */
+        #stats-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+        }
+        #stats-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .stats-bg {
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                              linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.3;
+        }
+
+        .stats-content { position: relative; z-index: 2; width: 70%; max-width: 900px; }
+        .stats-header {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 8px;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        .stats-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 5rem;
+            letter-spacing: 6px;
+            color: var(--text);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .stats-title span { color: var(--gold); }
+
+        .podium-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            height: 90px;
+            opacity: 0;
+            transform: translateX(-30px);
+            animation: statSlide 0.5s ease forwards;
+        }
+        @keyframes statSlide { to { opacity: 1; transform: translateX(0); } }
+
+        .podium-rank {
+            width: 100px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 3rem;
+        }
+        .podium-name {
+            flex: 1;
+            padding: 0 30px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.6rem;
+            letter-spacing: 3px;
+        }
+        .podium-pts {
+            padding: 0 30px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.4rem;
+            text-align: right;
+            color: var(--muted);
+        }
+        .podium-pts strong {
+            display: block;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.4rem;
+            letter-spacing: 2px;
+        }
+
+        .podium-row.gold { border-color: var(--gold); background: rgba(240,192,64,0.06); }
+        .podium-row.gold .podium-rank  { background: var(--gold); color: #000; }
+        .podium-row.gold .podium-name  { color: var(--gold); }
+        .podium-row.gold .podium-pts strong { color: var(--gold); }
+
+        .podium-row.silver { border-color: #aaa; background: rgba(200,200,200,0.04); }
+        .podium-row.silver .podium-rank { background: #aaa; color: #000; }
+        .podium-row.silver .podium-name { color: #ccc; }
+        .podium-row.silver .podium-pts strong { color: #ccc; }
+
+        .podium-row.bronze { border-color: #cd7f32; background: rgba(205,127,50,0.04); }
+        .podium-row.bronze .podium-rank { background: #cd7f32; color: #000; }
+        .podium-row.bronze .podium-name { color: #cd7f32; }
+        .podium-row.bronze .podium-pts strong { color: #cd7f32; }
+
+        .podium-row.rest .podium-rank { background: var(--panel); color: var(--muted); font-size: 2rem; }
+        .podium-row.rest .podium-name { color: var(--muted); }
+
+        /* ══════════════════════════════════════
+           LEADER CHANGE SIDEBAR FLASH
+        ══════════════════════════════════════ */
+        #leader-flash {
+            position: fixed;
+            top: 80px;
+            right: -320px;
+            width: 300px;
+            background: var(--red);
+            padding: 20px 25px;
+            z-index: 4500;
+            border-left: 5px solid #fff;
+            transition: right 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-radius: 4px 0 0 4px;
+        }
+        #leader-flash.active { right: 0; }
+        #leader-flash .lf-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 4px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 5px;
+        }
+        #leader-flash .lf-name {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.4rem;
+            letter-spacing: 3px;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══ WAITING / PRE-MATCH SCREEN ═══ -->
+    <div id="waiting-screen">
+        <div class="hype-grid"></div>
+        <div class="bracket tl"></div>
+        <div class="bracket tr"></div>
+        <div class="bracket bl"></div>
+        <div class="bracket br"></div>
+
+        <div class="waiting-body">
+            <div class="hype-topbar">
+                <div class="hype-logo">TAROK TV</div>
+                <div class="hype-live-pill">
+                    <div class="live-dot-pre"></div>
+                    <span>AWAITING MATCH START</span>
+                </div>
+            </div>
+
+            <div class="hype-center">
+                <!-- Main title area -->
+                <div class="hype-main">
+                    <div class="hype-pre-label">⬛ NEXT MATCH INCOMING</div>
+                    <div class="hype-title">TAROK<br><span>LIVE</span></div>
+                    <div class="hype-sub">BROADCAST SYSTEM READY</div>
+                    <div class="hype-players-strip" id="hype-players"></div>
+                </div>
+
+                <!-- Right: previous game stats -->
+                <div class="hype-stats-panel" id="hype-prev-stats">
+                    <div class="hype-stats-title">LAST GAME RESULTS</div>
+                    <div id="prev-stats-rows"></div>
+                </div>
+            </div>
+
+            <div class="hype-ticker">
+                <span class="ticker-inner" id="ticker-text">
+                    TAROK TV &nbsp;•&nbsp; MATCH STARTING SOON &nbsp;•&nbsp; STAY TUNED &nbsp;•&nbsp; TAROK TV &nbsp;•&nbsp; MATCH STARTING SOON &nbsp;•&nbsp; STAY TUNED &nbsp;•&nbsp; TAROK TV &nbsp;•&nbsp;
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ FULLSCREEN BROADCAST ALERT ═══ -->
+    <div id="fullscreen-alert">
+        <div class="alert-wipe-top"></div>
+        <div class="alert-wipe-bot"></div>
+        <div class="alert-stripe"></div>
+        <div class="alert-content">
+            <div class="alert-eyebrow" id="alert-eyebrow">UPDATE</div>
+            <div class="alert-main-text" id="alert-text">ROUND SCORED</div>
+        </div>
+    </div>
+
+    <!-- ═══ LEADER FLASH SIDEBAR ═══ -->
+    <div id="leader-flash">
+        <div class="lf-label">▲ NEW LEADER</div>
+        <div class="lf-name" id="lf-name">-</div>
+    </div>
+
+    <!-- ═══ MAIN BROADCAST LAYOUT ═══ -->
+    <div class="tv-container">
+        <div class="broadcast-bar">
+            <div class="bar-logo"><span class="bar-logo-text">TAROK TV</span></div>
+            <div class="bar-status">
+                <div class="live-dot"></div>
+                <span class="bar-status-text">LIVE</span>
+            </div>
+            <div class="bar-rule" id="rule-tag"></div>
+            <div class="bar-spacer"></div>
+            <div class="bar-next-dealer">
+                <div class="next-label">Next Dealer</div>
+                <div class="next-name" id="next-dealer-display">—</div>
+            </div>
+        </div>
+
+        <div class="table-frame" id="scroll-box">
+            <table>
+                <thead><tr id="table-header"></tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+
+        <div class="totals-bar">
+            <table>
+                <tbody id="table-totals"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══ WINNER OVERLAY ═══ -->
+    <div id="winner-overlay">
+        <div class="confetti-wrap" id="confetti-wrap"></div>
+        <div class="winner-bg-stripes">
+            <div class="winner-stripe"></div>
+            <div class="winner-stripe"></div>
+            <div class="winner-stripe"></div>
+            <div class="winner-stripe"></div>
+            <div class="winner-stripe"></div>
+        </div>
+        <div class="winner-card">
+            <span class="winner-crown">👑</span>
+            <div class="winner-label">GAME WINNER</div>
+            <div class="winner-name" id="winner-name">—</div>
+            <div class="winner-sub">Match Complete</div>
+        </div>
+    </div>
+
+    <!-- ═══ STATS OVERLAY ═══ -->
+    <div id="stats-overlay">
+        <div class="stats-bg"></div>
+        <div class="stats-content">
+            <div class="stats-header">FINAL STANDINGS</div>
+            <div class="stats-title">MATCH<br><span>RESULTS</span></div>
+            <div id="podium-container"></div>
+        </div>
+    </div>
+
+<script>
+const watchApp = {
+    supabaseUrl: 'https://kkgaceamcqqfacygtvtr.supabase.co',
+    supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
+    db: null,
+    players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
+    currentGame: null,
+    currentLeader: null,
+    isInitialRender: true,
+    finalTotals: {},
+    alertQueue: [],
+    isAlertPlaying: false,
+
+    // ── AUDIO ENGINE ──
+    audioCtx: new (window.AudioContext || window.webkitAudioContext)(),
+
+    playTone(freq, type, startTime, duration, vol = 0.08) {
+        if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+        const osc  = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime + startTime);
+        gain.gain.setValueAtTime(vol, this.audioCtx.currentTime + startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + startTime + duration);
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+        osc.start(this.audioCtx.currentTime + startTime);
+        osc.stop(this.audioCtx.currentTime + startTime + duration + 0.05);
+    },
+
+    // Broadcast "thud" — cinematic low punch
+    playImpact() {
+        this.playTone(80,  'sine',     0,    0.4, 0.2);
+        this.playTone(60,  'sine',     0,    0.6, 0.15);
+        this.playTone(600, 'square',   0,    0.05, 0.06);
+        this.playTone(1200,'square',   0.02, 0.03, 0.04);
+    },
+
+    // High-tech "ding" for round scored
+    playDing() {
+        this.playTone(880,  'sine',    0,    0.3, 0.07);
+        this.playTone(1320, 'sine',    0.05, 0.25, 0.05);
+        this.playTone(1760, 'sine',    0.1,  0.2,  0.04);
+    },
+
+    // Alert stab sequence
+    playNewsAlert() {
+        this.playImpact();
+        this.playTone(440, 'square', 0.1,  0.08, 0.06);
+        this.playTone(660, 'square', 0.2,  0.08, 0.06);
+        this.playTone(880, 'square', 0.3,  0.12, 0.07);
+    },
+
+    // New leader dramatic hit
+    playLeaderAlert() {
+        this.playTone(100, 'sine',    0,    0.5, 0.2);
+        this.playTone(200, 'sine',    0.05, 0.4, 0.1);
+        this.playTone(550, 'sawtooth',0.1,  0.15,0.06);
+        this.playTone(440, 'triangle',0.25, 0.6, 0.07);
+        this.playTone(550, 'triangle',0.35, 0.5, 0.06);
+        this.playTone(660, 'triangle',0.45, 0.4, 0.05);
+    },
+
+    // Victory fanfare
+    playVictoryFanfare() {
+        const melody = [
+            [523, 0], [659, 0.18], [784, 0.36],
+            [1047, 0.54], [784, 0.72], [880, 0.9], [1047, 1.1]
+        ];
+        melody.forEach(([freq, t], i) => {
+            const dur = i === melody.length - 1 ? 1.8 : 0.18;
+            this.playTone(freq,        'triangle', t, dur, 0.1);
+            this.playTone(freq * 2,    'sine',     t, dur * 0.6, 0.04);
+        });
+        this.playTone(130, 'sine', 0, 2.5, 0.15);
+        this.playTone(196, 'sine', 0.5, 2, 0.1);
+    },
+
+    // Stats jingle
+    playStatsJingle() {
+        [[523, 0], [659, 0.1], [784, 0.2], [1047, 0.35]].forEach(([f, t]) => {
+            this.playTone(f, 'sine', t, 1.2, 0.07);
+        });
+    },
+
+    // ── INIT ──
+    async init() {
+        this.db = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+        this.checkInitialState();
+    },
+
+    async checkInitialState() {
+        const { data: game } = await this.db.from('games').select('*')
+            .order('created_at', { ascending: false }).limit(1).single();
+
+        if (!game || (game.status !== 'active' && !this.isRecent(game.created_at))) {
+            // Show waiting screen & load previous game stats for hype
+            document.getElementById('waiting-screen').style.display = 'flex';
+            this.populateWaitingScreen(game);
+            this.listenForNewGames();
+        } else {
+            document.getElementById('waiting-screen').style.display = 'none';
+            this.startGameView(game);
+        }
+    },
+
+    isRecent(date) {
+        return (Date.now() - new Date(date).getTime()) < 3600000;
+    },
+
+    async populateWaitingScreen(lastGame) {
+        // Render player chips
+        const playerStrip = document.getElementById('hype-players');
+        playerStrip.innerHTML = this.players.map(p =>
+            `<div class="hype-player-chip">${p}</div>`
+        ).join('');
+
+        // Load previous game rounds for stats
+        if (lastGame) {
+            const { data: rounds } = await this.db.from('rounds').select('*')
+                .eq('game_id', lastGame.id).order('round_number', { ascending: true });
+
+            if (rounds && rounds.length > 0) {
+                // Calculate totals
+                const totals = {};
+                this.players.forEach(p => totals[p] = 0);
+                rounds.forEach(r => {
+                    if (r.scores.type !== 'global_star' && r.scores.points) {
+                        this.players.forEach(p => { totals[p] += (r.scores.points[p] || 0); });
+                    }
+                });
+
+                const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+                const winner = lastGame.winner || sorted[0][0];
+
+                const medals = ['🥇', '🥈', '🥉', '4th'];
+                let html = '';
+                sorted.forEach(([name, pts], i) => {
+                    html += `
+                        <div class="stat-row" style="animation-delay:${i * 0.15}s">
+                            <span class="stat-name">${medals[i]} ${name}</span>
+                            <span class="stat-val ${i === 0 ? 'gold' : ''}">${pts}</span>
+                        </div>
+                    `;
+                });
+                html += `<div class="stat-row" style="animation-delay:0.8s; margin-top: 10px;">
+                    <span class="stat-name">ROUNDS PLAYED</span>
+                    <span class="stat-val">${rounds.filter(r => r.scores.type !== 'global_star').length}</span>
+                </div>`;
+
+                document.getElementById('prev-stats-rows').innerHTML = html;
+
+                // Update ticker with winner info
+                document.getElementById('ticker-text').innerHTML =
+                    `PREVIOUS WINNER: ${winner.toUpperCase()} &nbsp;•&nbsp; ${rounds.length} ROUNDS PLAYED &nbsp;•&nbsp; `
+                    + sorted.map(([n, p]) => `${n.toUpperCase()}: ${p} PTS`).join(' &nbsp;|&nbsp; ')
+                    + ` &nbsp;•&nbsp; NEXT MATCH STARTING SOON &nbsp;•&nbsp; `;
+            }
+        }
+    },
+
+    listenForNewGames() {
+        this.db.channel('lobby').on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'games'
+        }, () => location.reload()).subscribe();
+    },
+
+    async startGameView(game) {
+        this.currentGame = game;
+        document.getElementById('waiting-screen').style.display = 'none';
+        this.renderEndRule(game.endrule);
+
+        if (game.status === 'finished') {
+            this.showWinner(game.winner);
+        } else {
+            setTimeout(() => this.queueBroadcast('MATCH BEGINS', 'LIVE NOW', 'gold'), 800);
+        }
+
+        const { data: rounds } = await this.db.from('rounds').select('*')
+            .eq('game_id', game.id).order('round_number', { ascending: true });
+        this.renderTable(rounds);
+        this.setupSubscription(game.id);
+    },
+
+    renderEndRule(rule) {
+        const tag = document.getElementById('rule-tag');
+        if (!rule) return;
+        tag.style.display = 'flex';
+        if (rule.type === 'skis') {
+            tag.innerHTML = `🎿 &nbsp;TARGET: ${rule.target} SKIS`;
+            tag.style.color = '#9c27b0';
+            tag.style.borderBottom = '2px solid #9c27b0';
+        } else if (rule.type === 'points') {
+            tag.innerHTML = `🏁 &nbsp;GOAL: ${rule.target.toLocaleString()} PTS`;
+        }
+    },
+
+    setupSubscription(gameId) {
+        this.db.channel(`tv-live-${gameId}`)
+            .on('postgres_changes', {
+                event: 'INSERT', schema: 'public', table: 'rounds',
+                filter: `game_id=eq.${gameId}`
+            }, async (payload) => {
+                this.playDing();
+                if (payload.new.scores.type !== 'global_star') {
+                    this.queueBroadcast(`ROUND ${payload.new.round_number}`, 'SCORED', 'blue');
+                } else {
+                    this.queueBroadcast('BONUS', 'GLOBAL STAR', 'gold');
+                }
+                const { data: updatedRounds } = await this.db.from('rounds').select('*')
+                    .eq('game_id', gameId).order('round_number', { ascending: true });
+                setTimeout(() => this.renderTable(updatedRounds), 500);
+            })
+            .on('postgres_changes', {
+                event: 'UPDATE', schema: 'public', table: 'games',
+                filter: `id=eq.${gameId}`
+            }, payload => {
+                this.currentGame = payload.new;
+                if (payload.new.status === 'finished') this.showWinner(payload.new.winner);
+                this.renderEndRule(payload.new.endrule);
+            })
+            .subscribe();
+    },
+
+    queueBroadcast(eyebrow, text, theme) {
+        this.alertQueue.push({ eyebrow, text, theme });
+        if (!this.isAlertPlaying) this.playNextBroadcast();
+    },
+
+    playNextBroadcast() {
+        if (this.alertQueue.length === 0) {
+            this.isAlertPlaying = false;
+            return;
+        }
+        this.isAlertPlaying = true;
+        const { eyebrow, text, theme } = this.alertQueue.shift();
+
+        const el    = document.getElementById('fullscreen-alert');
+        const eyeEl = document.getElementById('alert-eyebrow');
+        const txtEl = document.getElementById('alert-text');
+
+        el.className = `theme-${theme}`;
+        eyeEl.textContent = eyebrow;
+        txtEl.textContent = text;
+
+        this.playNewsAlert();
+
+        // Force reflow then animate in
+        void el.offsetWidth;
+        el.classList.add('active');
+
+        setTimeout(() => {
+            el.classList.add('exit');
+            setTimeout(() => {
+                el.classList.remove('active', 'exit');
+                setTimeout(() => this.playNextBroadcast(), 300);
+            }, 450);
+        }, 2400);
+    },
+
+    renderTable(rounds) {
+        const baseStars = this.currentGame?.starting_stars || 0;
+        const stars  = {};
+        const totals = {};
+        this.players.forEach(p => { stars[p] = baseStars; totals[p] = 0; });
+
+        const body = document.getElementById('table-body');
+        let lastDealer = this.players[0];
+        let newHtml = '';
+
+        rounds.forEach((r, idx) => {
+            const isLast = idx === rounds.length - 1;
+            const animClass = isLast && !this.isInitialRender ? 'new-row' : '';
+
+            if (r.scores.type === 'global_star') {
+                this.players.forEach(p => stars[p]++);
+                newHtml += `<tr class="star-row ${animClass}"><td colspan="6">🌟 &nbsp;GLOBAL STAR ADDED TO ALL PLAYERS</td></tr>`;
+            } else {
+                lastDealer = r.scores.dealer;
+                if (r.scores.granted_global_star) this.players.forEach(p => stars[p]++);
+
+                let spenders = [];
+                if (r.scores.star_spent_by && r.scores.star_spent_by !== 'none') {
+                    spenders = Array.isArray(r.scores.star_spent_by)
+                        ? r.scores.star_spent_by
+                        : [r.scores.star_spent_by];
+                }
+
+                let rowData = `<td>${r.round_number}</td><td>${lastDealer}</td>`;
+                this.players.forEach(p => {
+                    const pts = r.scores.points?.[p] || 0;
+                    totals[p] += pts;
+                    const hasSpent = spenders.some(s => s.toLowerCase() === p.toLowerCase());
+                    let starIcon = '';
+                    if (hasSpent && stars[p] > 0) {
+                        stars[p]--;
+                        starIcon = ' <span style="font-size:0.9rem;">⭐</span>';
+                    }
+                    rowData += `<td class="${pts < 0 ? 'neg' : ''}">${pts}${starIcon}</td>`;
+                });
+                newHtml += `<tr class="${animClass}">${rowData}</tr>`;
+            }
+        });
+
+        body.innerHTML = newHtml;
+
+        // Next dealer
+        const nextIdx = (this.players.indexOf(lastDealer) + 1) % this.players.length;
+        document.getElementById('next-dealer-display').textContent = this.players[nextIdx];
+
+        // Leader detection
+        const maxScore = Math.max(...Object.values(totals));
+        const leaders  = this.players.filter(p => totals[p] === maxScore && maxScore !== 0);
+        const leaderStr = leaders.join(' & ');
+
+        if (!this.isInitialRender && this.currentLeader !== leaderStr && leaders.length > 0) {
+            this.flashLeader(leaderStr);
+        }
+        this.currentLeader = leaderStr;
+        this.finalTotals   = totals;
+        this.isInitialRender = false;
+
+        // Header
+        document.getElementById('table-header').innerHTML =
+            '<th>#</th><th>DEALER</th>' +
+            this.players.map(p =>
+                `<th>${p}<br><span style="color:var(--gold);font-size:1rem;font-family:'JetBrains Mono',monospace;">⭐ ${stars[p]}</span></th>`
+            ).join('');
+
+        // Totals
+        document.getElementById('table-totals').innerHTML =
+            `<tr>
+                <td colspan="2" style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;letter-spacing:4px;color:var(--muted);">TOTAL</td>
+                ${this.players.map(p => {
+                    const isLead = totals[p] === maxScore && maxScore !== 0;
+                    return `<td class="leader-cell ${isLead ? 'leader-total' : ''}">
+                        ${isLead ? '<span class="crown-icon">👑</span>' : ''}
+                        ${totals[p]}
+                    </td>`;
+                }).join('')}
+            </tr>`;
+
+        const box = document.getElementById('scroll-box');
+        box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+    },
+
+    flashLeader(name) {
+        this.playLeaderAlert();
+        document.getElementById('lf-name').textContent = name;
+        const flash = document.getElementById('leader-flash');
+        flash.classList.add('active');
+        setTimeout(() => flash.classList.remove('active'), 3500);
+    },
+
+    spawnConfetti() {
+        const wrap  = document.getElementById('confetti-wrap');
+        const colors = ['#f0c040', '#ffffff', '#ff5252', '#2979ff', '#00e676'];
+        for (let i = 0; i < 80; i++) {
+            const el = document.createElement('div');
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const size  = 6 + Math.random() * 10;
+            el.style.cssText = `
+                position:absolute;
+                left:${Math.random() * 100}%;
+                top:-20px;
+                width:${size}px;
+                height:${size}px;
+                background:${color};
+                border-radius:${Math.random() > 0.5 ? '50%' : '2px'};
+                animation: confettiFall ${2 + Math.random() * 3}s ease-in ${Math.random() * 2}s forwards;
+            `;
+            wrap.appendChild(el);
+        }
+    },
+
+    showWinner(name) {
+        this.playVictoryFanfare();
+        document.getElementById('winner-name').textContent = name;
+        document.getElementById('winner-overlay').classList.add('active');
+        this.spawnConfetti();
+
+        setTimeout(() => {
+            document.getElementById('winner-overlay').classList.remove('active');
+            setTimeout(() => this.showFinalStats(), 800);
+        }, 7000);
+    },
+
+    showFinalStats() {
+        this.playStatsJingle();
+        const sorted = Object.entries(this.finalTotals).sort((a, b) => b[1] - a[1]);
+        const classes = ['gold', 'silver', 'bronze', 'rest'];
+        const medals  = ['01', '02', '03', '04'];
+        const emojis  = ['🥇', '🥈', '🥉', '#4'];
+
+        const html = sorted.map(([name, pts], i) => `
+            <div class="podium-row ${classes[i] || 'rest'}" style="animation-delay:${i * 0.35}s">
+                <div class="podium-rank">${emojis[i] || `#${i+1}`}</div>
+                <div class="podium-name">${name}</div>
+                <div class="podium-pts">
+                    <span>POINTS</span>
+                    <strong>${pts}</strong>
+                </div>
+            </div>
+        `).join('');
+
+        document.getElementById('podium-container').innerHTML = html;
+        document.getElementById('stats-overlay').classList.add('active');
+    }
+};
+
+document.body.addEventListener('click', () => {
+    if (watchApp.audioCtx.state === 'suspended') watchApp.audioCtx.resume();
+}, { once: true });
+
+watchApp.init();
+</script>
+</body>
+</html>
