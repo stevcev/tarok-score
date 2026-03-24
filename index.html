@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tarok Tracker</title>
+    <title>Tarok Tracker Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --bg-color: #121212;
-            --surface-color: #1e1e1e;
-            --primary-color: #bb86fc;
-            --secondary-color: #03dac6;
-            --error-color: #cf6679;
-            --text-primary: #ffffff;
-            --text-secondary: #b3b3b3;
-            --border-color: #333333;
-            --star-color: #ffd700;
+            --bg-table: #1c3d2f; /* Casino green */
+            --bg-dark: #0f2027;
+            --surface-color: #fdfbf7; /* Card white */
+            --primary-color: #d32f2f; /* Heart/Diamond red */
+            --secondary-color: #1a1a1a; /* Spade/Club black */
+            --accent-color: #ffd700; /* Gold */
+            --text-dark: #212121;
+            --text-light: #ffffff;
+            --border-radius: 12px;
         }
 
         * {
@@ -26,274 +26,336 @@
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            line-height: 1.6;
-            padding: 20px;
+            background: linear-gradient(135deg, var(--bg-dark), var(--bg-table));
+            color: var(--text-light);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
+            padding: 20px;
         }
 
         .container {
             width: 100%;
             max-width: 800px;
+            position: relative;
         }
 
-        h1, h2, h3 { margin-bottom: 15px; }
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeIn 1s ease-in;
+        }
         
-        .card {
-            background-color: var(--surface-color);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            border: 1px solid var(--border-color);
+        .hero svg {
+            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.5));
+            margin-bottom: 10px;
         }
 
+        .hero h1 {
+            font-size: 2.5em;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent-color);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Cards / Panels */
+        .card-panel {
+            background-color: var(--surface-color);
+            color: var(--text-dark);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        /* Playing Card Corner Accents */
+        .card-panel::before, .card-panel::after {
+            position: absolute;
+            font-size: 40px;
+            opacity: 0.05;
+            pointer-events: none;
+        }
+        .card-panel::before { content: '♠'; top: 10px; left: 15px; }
+        .card-panel::after { content: '♥'; bottom: 10px; right: 15px; color: var(--primary-color); }
+
+        h2, h3 { margin-bottom: 15px; color: var(--secondary-color); border-bottom: 2px solid #eee; padding-bottom: 5px;}
+
+        /* Buttons */
         button {
-            background-color: var(--primary-color);
-            color: #000;
+            background-color: var(--secondary-color);
+            color: var(--text-light);
             border: none;
-            padding: 10px 15px;
-            border-radius: 6px;
+            padding: 12px 20px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
-            transition: opacity 0.2s;
+            font-size: 1em;
+            transition: transform 0.1s, opacity 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             margin: 5px;
         }
-
-        button:hover { opacity: 0.8; }
-        button.secondary { background-color: var(--secondary-color); }
-        button.danger { background-color: var(--error-color); color: white; }
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
         
+        button.primary { background-color: var(--primary-color); }
+        button.accent { background-color: var(--accent-color); color: var(--text-dark); }
+        button.outline { background: transparent; border: 2px solid var(--secondary-color); color: var(--secondary-color); }
+
+        /* Inputs */
         input, select {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             margin-bottom: 15px;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-            background-color: var(--bg-color);
-            color: var(--text-primary);
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            color: var(--text-dark);
+            font-size: 1em;
         }
 
         .hidden { display: none !important; }
+        .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
 
         /* Table Styles */
-        .table-container { overflow-x: auto; }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: center;
-            border-bottom: 1px solid var(--border-color);
-        }
-        th { background-color: rgba(255,255,255,0.05); }
-        .star { color: var(--star-color); font-size: 0.8em; margin-left: 4px; }
+        .table-container { overflow-x: auto; background: white; border-radius: 8px; padding: 10px; border: 1px solid #ddd; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; color: var(--secondary-color); font-weight: bold; }
+        .star { color: #f39c12; font-size: 0.9em; margin-left: 2px; text-shadow: 0 0 2px rgba(0,0,0,0.2); }
+        .dealer-col { font-weight: bold; color: var(--primary-color); }
 
-        /* Form Layouts */
-        .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px;}
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-
-        /* Modal Styles */
+        /* Modals */
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             display: flex; justify-content: center; align-items: center;
             z-index: 1000;
+            backdrop-filter: blur(4px);
         }
         .modal-content {
             background: var(--surface-color);
-            padding: 30px; border-radius: 12px; text-align: center;
-            max-width: 400px; width: 90%;
-            border: 2px solid var(--primary-color);
+            color: var(--text-dark);
+            padding: 30px; border-radius: var(--border-radius); 
+            text-align: center; max-width: 90%; width: 450px;
+            position: relative;
         }
-        .pro-winner {
-            border-color: var(--star-color);
-            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
-            animation: pulse 2s infinite;
+        
+        /* Specific List Styling */
+        .game-list-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
         }
-        .pro-winner h2 {
-            font-size: 2.5em; color: var(--star-color); text-transform: uppercase;
-        }
+        .game-list-item.active-game { border-left: 5px solid var(--primary-color); }
+        .game-list-item.finished-game { border-left: 5px solid var(--secondary-color); }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        /* Loading Spinner */
-        #loader { text-align: center; margin: 10px; color: var(--secondary-color); }
+        #loader { text-align: center; margin: 10px; font-weight: bold; color: var(--accent-color); }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div id="loader" class="hidden">Syncing with database...</div>
-
-    <div id="home-screen" class="card">
+    
+    <div class="hero">
+        <svg viewBox="0 0 120 120" width="100" height="100">
+            <g transform="rotate(-15 40 60)">
+                <rect x="20" y="20" width="50" height="75" rx="4" fill="white" stroke="#222" stroke-width="2"/>
+                <text x="38" y="65" fill="#1a1a1a" font-size="30">♠</text>
+            </g>
+            <g transform="rotate(15 80 60)">
+                <rect x="50" y="20" width="50" height="75" rx="4" fill="white" stroke="#222" stroke-width="2"/>
+                <text x="68" y="65" fill="#d32f2f" font-size="30">♥</text>
+            </g>
+            <g transform="translate(0 -10)">
+                <rect x="35" y="15" width="50" height="75" rx="4" fill="#fff8e1" stroke="#b8860b" stroke-width="3"/>
+                <text x="43" y="60" fill="#b8860b" font-size="22" font-weight="bold" font-family="serif">XXI</text>
+            </g>
+        </svg>
         <h1>Tarok Tracker</h1>
-        <div class="grid-2">
-            <button onclick="app.showSetup()">Enter Points</button>
-            <button class="secondary" onclick="app.showWatch()">Watch Score</button>
+    </div>
+
+    <div id="loader" class="hidden">♠ ♥ Syncing Data... ♦ ♣</div>
+
+    <div id="home-screen" class="card-panel">
+        <h2 style="text-align: center; border: none;">Select Action</h2>
+        <div class="grid-2" style="margin-top: 20px;">
+            <button class="primary" onclick="app.handleEnterPointsClick()" style="padding: 20px; font-size: 1.2em;">📝 Enter Points</button>
+            <button class="" onclick="app.showWatch()" style="padding: 20px; font-size: 1.2em;">👁️ Watch Score</button>
         </div>
     </div>
 
-    <div id="setup-screen" class="card hidden">
+    <div id="setup-screen" class="card-panel hidden">
         <h2>Start New Game</h2>
         <label>Select Starting Dealer:</label>
         <select id="starting-dealer"></select>
         
-        <label>End Game Condition:</label>
-        <select id="end-condition" onchange="app.toggleEndConditionInputs()">
-            <option value="manual">Manual End Only</option>
-            <option value="points">Points Threshold</option>
-            <option value="skis">Skis (Ends on Dealer)</option>
-        </select>
-
-        <div id="points-input-group" class="hidden">
-            <label>Points to win:</label>
-            <input type="number" id="points-threshold" value="1000">
-        </div>
-
-        <div id="skis-input-group" class="hidden">
-            <label>Select Skis Player:</label>
-            <select id="skis-player"></select>
-        </div>
-
-        <div class="flex-row">
-            <button onclick="app.startGame()">Start Game</button>
-            <button class="secondary" onclick="app.showHome()">Back</button>
+        <div class="flex-row" style="margin-top: 20px;">
+            <button class="primary" onclick="app.startNewGame()">Start Game</button>
+            <button class="outline" onclick="app.showHome()">Cancel</button>
         </div>
     </div>
 
-    <div id="watch-screen" class="card hidden">
-        <h2>Games History</h2>
-        <button class="secondary" onclick="app.showHome()" style="margin-bottom: 15px;">Back</button>
+    <div id="watch-screen" class="card-panel hidden">
+        <div class="flex-row" style="justify-content: space-between;">
+            <h2 style="margin: 0; border: none;">Games History</h2>
+            <button class="outline" onclick="app.showHome()">Back</button>
+        </div>
+        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ddd;">
         <div id="games-list"></div>
     </div>
 
     <div id="game-screen" class="hidden">
         
-        <div class="card flex-row" style="justify-content: space-between; flex-wrap: wrap;">
-            <button onclick="app.toggleModule('add-round-module')">Toggle Add Round</button>
-            <button class="secondary" onclick="app.undoLastRound()">Undo Last</button>
-            <button class="danger" onclick="app.toggleModule('end-game-module')">End Game Settings</button>
+        <div id="game-controls" class="card-panel flex-row" style="justify-content: space-between;">
+            <button class="accent" onclick="app.toggleModule('add-round-module')">➕ Add Round</button>
+            <button class="outline" onclick="app.undoLastRound()">↩ Undo</button>
+            <button class="primary" onclick="app.toggleModule('end-game-module')">🏁 Game Options</button>
         </div>
 
-        <div id="add-round-module" class="card hidden">
-            <h3>Add Round Data</h3>
-            <div class="flex-row" style="margin-bottom: 15px;">
-                <label><input type="radio" name="input-mode" value="team" checked onchange="app.toggleInputMode()"> Team Mode</label>
-                <label><input type="radio" name="input-mode" value="manual" onchange="app.toggleInputMode()"> Manual Mode</label>
-                <label style="margin-left: auto; color: var(--star-color);">
-                    <input type="checkbox" id="star-all"> ⭐ Star All (x2 Points)
+        <div id="add-round-module" class="card-panel hidden" style="border: 2px solid var(--accent-color);">
+            <h3>Record Round</h3>
+            <div class="flex-row" style="background: #f8f9fa; padding: 10px; border-radius: 8px;">
+                <label style="cursor: pointer;"><input type="radio" name="input-mode" value="team" checked onchange="app.toggleInputMode()"> Team Mode</label>
+                <label style="cursor: pointer; margin-left: 15px;"><input type="radio" name="input-mode" value="manual" onchange="app.toggleInputMode()"> Manual</label>
+                <label style="margin-left: auto; color: #d35400; font-weight: bold; cursor: pointer;">
+                    <input type="checkbox" id="star-all"> ⭐ Star (x2)
                 </label>
             </div>
 
-            <div id="team-inputs">
-                <div class="grid-2">
-                    <div>
-                        <label>Player 1:</label>
-                        <select id="team-p1"></select>
-                    </div>
-                    <div>
-                        <label>Player 2 (Partner):</label>
-                        <select id="team-p2"></select>
-                    </div>
+            <div id="team-inputs" class="grid-2" style="margin-top: 15px;">
+                <div>
+                    <label>Player 1:</label>
+                    <select id="team-p1"></select>
                 </div>
-                <label>Points to award:</label>
-                <input type="number" id="team-points" placeholder="e.g. 50">
+                <div>
+                    <label>Partner:</label>
+                    <select id="team-p2"></select>
+                </div>
+                <div style="grid-column: span 2;">
+                    <label>Points:</label>
+                    <input type="number" id="team-points" placeholder="Enter points won/lost">
+                </div>
             </div>
 
-            <div id="manual-inputs" class="hidden grid-2">
+            <div id="manual-inputs" class="hidden grid-2" style="margin-top: 15px;"></div>
+            <button class="primary" onclick="app.submitRound()" style="width: 100%; margin-top: 10px;">Submit Score</button>
+        </div>
+
+        <div id="end-game-module" class="card-panel hidden" style="border: 2px solid var(--primary-color);">
+            <h3>Game Options</h3>
+            
+            <div style="background: #fff3f3; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ffcdd2;">
+                <h4 style="color: var(--primary-color); margin-bottom: 10px;">Active Skis Target</h4>
+                <p id="current-skis-status" style="margin-bottom: 10px; font-size: 0.9em; color: #555;">No active Skis target set.</p>
+                <div class="flex-row">
+                    <select id="live-skis-player" style="margin: 0; flex: 1;"></select>
+                    <button class="outline" onclick="app.setLiveSkis()" style="margin: 0;">Set Skis</button>
                 </div>
+            </div>
 
-            <button onclick="app.submitRound()" style="width: 100%; margin-top: 10px;">Submit Round</button>
+            <button class="primary" onclick="app.endGameManual()" style="width: 100%;">🛑 Force End Game Now</button>
         </div>
 
-        <div id="end-game-module" class="card hidden">
-            <h3>Manually End Game</h3>
-            <p>Are you sure you want to end the game and declare a winner?</p>
-            <button class="danger" onclick="app.endGame()">Finish & Calculate Winner</button>
-        </div>
-
-        <div class="card table-container">
+        <div class="card-panel table-container">
+            <div class="flex-row" style="justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                <h3 style="border: none; margin: 0;">Scoreboard</h3>
+                <button id="exit-watch-btn" class="outline hidden" onclick="app.showWatch()" style="padding: 5px 10px; font-size: 0.8em;">Exit Watch</button>
+            </div>
             <table id="score-table">
-                <thead>
-                    <tr id="table-header">
-                        <th>Rnd</th>
-                        <th>Dealer</th>
-                        </tr>
-                </thead>
-                <tbody id="table-body">
-                    </tbody>
-                <tfoot>
-                    <tr id="table-totals" style="font-weight: bold; background: rgba(255,255,255,0.1);">
-                        </tr>
-                </tfoot>
+                <thead><tr id="table-header"></tr></thead>
+                <tbody id="table-body"></tbody>
+                <tfoot><tr id="table-totals" style="font-weight: bold; background: #f1f8e9;"></tr></tfoot>
             </table>
         </div>
     </div>
 </div>
 
+<div id="active-game-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2>Active Game Found</h2>
+        <p style="margin: 15px 0;">An active game is currently in progress. Would you like to continue entering points for it, or end it and start a fresh game?</p>
+        <div class="flex-row" style="justify-content: center; margin-top: 20px;">
+            <button class="primary" onclick="app.resumeGame(app.pendingActiveGameId, false)">Continue Game</button>
+            <button class="outline" onclick="app.abandonActiveAndStartNew()">End & Start New</button>
+        </div>
+        <button class="outline" onclick="app.closeModals()" style="width: 100%; margin-top: 10px; border: none;">Cancel</button>
+    </div>
+</div>
+
 <div id="winner-modal" class="modal-overlay hidden">
-    <div id="winner-content" class="modal-content">
-        <h2 id="winner-title">Winner!</h2>
-        <p id="winner-name" style="font-size: 1.5em; margin: 15px 0;"></p>
-        <p id="winner-score"></p>
-        <button onclick="app.closeModalAndHome()" style="margin-top: 20px;">Return Home</button>
+    <div class="modal-content" id="winner-box" style="border: 4px solid var(--accent-color);">
+        <h1 id="winner-title" style="color: var(--primary-color);">Winner!</h1>
+        <p id="winner-name" style="font-size: 2em; margin: 15px 0; font-weight: bold;"></p>
+        <p id="winner-score" style="font-size: 1.2em;"></p>
+        <button class="primary" onclick="app.closeModalsAndHome()" style="margin-top: 25px; width: 100%;">Return to Home</button>
     </div>
 </div>
 
 <script>
-// Prevent redeclaration errors by encapsulating in an object
 const app = {
-    // DB Config
+    // Database Config
     supabaseUrl: 'https://kkgaceamcqqfacygtvtr.supabase.co',
     supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
     db: null,
 
-    // State
+    // App State
     players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
     currentGameId: null,
     currentDealerIndex: 0,
     rounds: [],
     stars: { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 },
-    endSettings: { type: 'manual', target: null },
+    currentTotals: { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 },
+    skisTarget: null, 
     isProcessing: false,
+    pendingActiveGameId: null,
+    isReadOnly: false,
 
     init() {
-        // Init Supabase client
         this.db = supabase.createClient(this.supabaseUrl, this.supabaseKey);
-        
-        // Populate dropdowns
-        const p1Sel = document.getElementById('team-p1');
-        const p2Sel = document.getElementById('team-p2');
-        const dealerSel = document.getElementById('starting-dealer');
-        const skisSel = document.getElementById('skis-player');
+        this.populateDropdowns();
+    },
+
+    populateDropdowns() {
+        const selects = ['team-p1', 'team-p2', 'starting-dealer', 'live-skis-player'];
         const manualDiv = document.getElementById('manual-inputs');
         
+        selects.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.innerHTML = ''; 
+        });
+        manualDiv.innerHTML = '';
+
         this.players.forEach(p => {
-            p1Sel.innerHTML += `<option value="${p}">${p}</option>`;
-            p2Sel.innerHTML += `<option value="${p}">${p}</option>`;
-            dealerSel.innerHTML += `<option value="${p}">${p}</option>`;
-            skisSel.innerHTML += `<option value="${p}">${p}</option>`;
+            const option = `<option value="${p}">${p}</option>`;
+            selects.forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerHTML += option; });
             
             manualDiv.innerHTML += `
                 <div>
-                    <label>${p} Points:</label>
+                    <label>${p}:</label>
                     <input type="number" id="manual-${p}" value="0">
                 </div>
             `;
         });
         
-        // Set default partner to different player
-        p2Sel.selectedIndex = 1;
+        document.getElementById('team-p2').selectedIndex = 1;
+        // Gordana is the first player in the array, so she is selected by default for starting dealer.
     },
 
     setLoading(active) {
@@ -301,55 +363,78 @@ const app = {
         document.getElementById('loader').classList.toggle('hidden', !active);
     },
 
-    // UI Navigation
+    // --- Navigation & UI ---
     hideAllScreens() {
         ['home-screen', 'setup-screen', 'watch-screen', 'game-screen'].forEach(id => {
             document.getElementById(id).classList.add('hidden');
         });
+        this.closeModals();
     },
     showHome() { this.hideAllScreens(); document.getElementById('home-screen').classList.remove('hidden'); },
     showSetup() { this.hideAllScreens(); document.getElementById('setup-screen').classList.remove('hidden'); },
+    closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); },
+    closeModalsAndHome() { this.closeModals(); this.showHome(); },
     
-    toggleEndConditionInputs() {
-        const type = document.getElementById('end-condition').value;
-        document.getElementById('points-input-group').classList.toggle('hidden', type !== 'points');
-        document.getElementById('skis-input-group').classList.toggle('hidden', type !== 'skis');
-    },
-
     toggleModule(id) {
         document.getElementById(id).classList.toggle('hidden');
     },
-
     toggleInputMode() {
         const isTeam = document.querySelector('input[name="input-mode"]:checked').value === 'team';
         document.getElementById('team-inputs').classList.toggle('hidden', !isTeam);
         document.getElementById('manual-inputs').classList.toggle('hidden', isTeam);
     },
 
-    // Core Logic
-    async startGame() {
+    // --- Entry Logic ---
+    async checkActiveGame() {
+        const { data, error } = await this.db.from('games').select('id').eq('status', 'active').limit(1);
+        if (error) console.error("Error checking active game:", error);
+        return (data && data.length > 0) ? data[0].id : null;
+    },
+
+    async handleEnterPointsClick() {
+        if(this.isProcessing) return;
+        this.setLoading(true);
+        const activeId = await this.checkActiveGame();
+        this.setLoading(false);
+
+        if (activeId) {
+            this.pendingActiveGameId = activeId;
+            document.getElementById('active-game-modal').classList.remove('hidden');
+        } else {
+            this.showSetup();
+        }
+    },
+
+    async abandonActiveAndStartNew() {
+        if(this.isProcessing) return;
+        this.setLoading(true);
+        try {
+            // Mark old game as finished (no winner)
+            await this.db.from('games').update({ status: 'finished' }).eq('id', this.pendingActiveGameId);
+            this.closeModals();
+            this.showSetup();
+        } catch(err) {
+            alert('Error closing active game: ' + err.message);
+        } finally {
+            this.setLoading(false);
+        }
+    },
+
+    // --- Core Game Flow ---
+    async startNewGame() {
         if(this.isProcessing) return;
         this.setLoading(true);
 
         const dealerName = document.getElementById('starting-dealer').value;
+        this.resetGameState();
         this.currentDealerIndex = this.players.indexOf(dealerName);
-        this.rounds = [];
-        this.stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
-
-        // End Settings
-        const endType = document.getElementById('end-condition').value;
-        if(endType === 'points') this.endSettings = { type: 'points', target: parseInt(document.getElementById('points-threshold').value) };
-        else if(endType === 'skis') this.endSettings = { type: 'skis', target: document.getElementById('skis-player').value };
-        else this.endSettings = { type: 'manual', target: null };
 
         try {
             const { data, error } = await this.db.from('games').insert([{ status: 'active' }]).select('id').single();
             if (error) throw error;
-            this.currentGameId = data.id;
             
-            this.hideAllScreens();
-            document.getElementById('game-screen').classList.remove('hidden');
-            this.renderTable();
+            this.currentGameId = data.id;
+            this.setupGameUI(false);
         } catch (err) {
             alert('Failed to start game: ' + err.message);
         } finally {
@@ -357,6 +442,78 @@ const app = {
         }
     },
 
+    async resumeGame(gameId, readOnly = false) {
+        if(this.isProcessing) return;
+        this.setLoading(true);
+        this.closeModals();
+        this.resetGameState();
+        this.currentGameId = gameId;
+
+        try {
+            // Fetch rounds
+            const { data: rounds, error } = await this.db.from('rounds')
+                .select('*')
+                .eq('game_id', gameId)
+                .order('round_number', { ascending: true });
+            
+            if (error) throw error;
+
+            if (rounds && rounds.length > 0) {
+                this.rounds = rounds;
+                // Rebuild stars and find next dealer
+                rounds.forEach(r => {
+                    if (r.scores.starred) this.players.forEach(p => this.stars[p]++);
+                });
+                
+                const lastDealer = rounds[rounds.length - 1].scores.dealer;
+                this.currentDealerIndex = (this.players.indexOf(lastDealer) + 1) % 4;
+            }
+
+            this.setupGameUI(readOnly);
+
+        } catch (err) {
+            alert('Failed to load game data: ' + err.message);
+            this.showHome();
+        } finally {
+            this.setLoading(false);
+        }
+    },
+
+    resetGameState() {
+        this.rounds = [];
+        this.stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+        this.currentTotals = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+        this.currentDealerIndex = 0;
+        this.skisTarget = null;
+        this.updateSkisUI();
+    },
+
+    setupGameUI(readOnly) {
+        this.isReadOnly = readOnly;
+        this.hideAllScreens();
+        
+        const gameScreen = document.getElementById('game-screen');
+        const controls = document.getElementById('game-controls');
+        const exitBtn = document.getElementById('exit-watch-btn');
+        const addRoundMod = document.getElementById('add-round-module');
+        const endMod = document.getElementById('end-game-module');
+
+        if (readOnly) {
+            controls.classList.add('hidden');
+            exitBtn.classList.remove('hidden');
+            addRoundMod.classList.add('hidden');
+            endMod.classList.add('hidden');
+        } else {
+            controls.classList.remove('hidden');
+            exitBtn.classList.add('hidden');
+            // modules hidden by default until toggled
+        }
+
+        gameScreen.classList.remove('hidden');
+        this.renderTable();
+    },
+
+    // --- Scoring ---
     async submitRound() {
         if(this.isProcessing) return;
         this.setLoading(true);
@@ -364,14 +521,12 @@ const app = {
         const isTeam = document.querySelector('input[name="input-mode"]:checked').value === 'team';
         const starAll = document.getElementById('star-all').checked;
         const multiplier = starAll ? 2 : 1;
-        
         let roundScores = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
 
         if (isTeam) {
             const p1 = document.getElementById('team-p1').value;
             const p2 = document.getElementById('team-p2').value;
             const pts = parseInt(document.getElementById('team-points').value) || 0;
-            
             roundScores[p1] += (pts * multiplier);
             if(p1 !== p2) roundScores[p2] += (pts * multiplier);
         } else {
@@ -384,32 +539,26 @@ const app = {
         const roundData = {
             game_id: this.currentGameId,
             round_number: this.rounds.length + 1,
-            scores: {
-                dealer: this.players[this.currentDealerIndex],
-                points: roundScores,
-                starred: starAll
-            }
+            scores: { dealer: this.players[this.currentDealerIndex], points: roundScores, starred: starAll }
         };
 
         try {
             const { data, error } = await this.db.from('rounds').insert([roundData]).select('id').single();
             if (error) throw error;
 
-            // Update local state
             this.rounds.push({ ...roundData, id: data.id });
             if (starAll) this.players.forEach(p => this.stars[p]++);
             
-            // Advance Dealer
             this.currentDealerIndex = (this.currentDealerIndex + 1) % 4;
             
-            // Reset inputs
+            // Reset UI
             document.getElementById('team-points').value = '';
             this.players.forEach(p => document.getElementById(`manual-${p}`).value = 0);
             document.getElementById('star-all').checked = false;
+            document.getElementById('add-round-module').classList.add('hidden');
 
             this.renderTable();
             this.checkEndConditions();
-
         } catch (err) {
             alert('Failed to save round: ' + err.message);
         } finally {
@@ -419,21 +568,17 @@ const app = {
 
     async undoLastRound() {
         if(this.isProcessing || this.rounds.length === 0) return;
+        if(!confirm("Are you sure you want to delete the last round?")) return;
+        
         this.setLoading(true);
-
         const lastRound = this.rounds[this.rounds.length - 1];
 
         try {
             const { error } = await this.db.from('rounds').delete().eq('id', lastRound.id);
             if (error) throw error;
 
-            // Revert state
             this.rounds.pop();
-            if (lastRound.scores.starred) {
-                this.players.forEach(p => this.stars[p]--);
-            }
-            
-            // Revert Dealer (handling negative modulo in JS)
+            if (lastRound.scores.starred) this.players.forEach(p => this.stars[p]--);
             this.currentDealerIndex = (this.currentDealerIndex - 1 + 4) % 4;
             
             this.renderTable();
@@ -444,70 +589,79 @@ const app = {
         }
     },
 
+    // --- Table Rendering ---
     renderTable() {
         const thead = document.getElementById('table-header');
-        thead.innerHTML = `<th>Rnd</th><th>Dealer</th>` + this.players.map(p => 
+        thead.innerHTML = `<th>#</th><th>Dealer</th>` + this.players.map(p => 
             `<th>${p} ${'<span class="star">★</span>'.repeat(this.stars[p])}</th>`
         ).join('');
 
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = '';
-        
-        let totals = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+        this.currentTotals = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
 
         this.rounds.forEach(r => {
             const tr = document.createElement('tr');
-            let html = `<td>${r.round_number}</td><td>${r.scores.dealer}</td>`;
+            let html = `<td>${r.round_number}</td><td class="dealer-col">${r.scores.dealer}</td>`;
             
             this.players.forEach(p => {
                 const pts = r.scores.points[p] || 0;
-                totals[p] += pts;
-                html += `<td>${pts}</td>`;
+                this.currentTotals[p] += pts;
+                html += `<td>${pts !== 0 ? pts : '-'}</td>`;
             });
             tr.innerHTML = html;
             tbody.appendChild(tr);
         });
 
-        // Current active dealer row styling
-        const activeTr = document.createElement('tr');
-        activeTr.style.border = '2px dashed var(--secondary-color)';
-        activeTr.innerHTML = `<td>Next</td><td style="color: var(--secondary-color); font-weight: bold;">${this.players[this.currentDealerIndex]}</td><td colspan="4">Waiting...</td>`;
-        tbody.appendChild(activeTr);
+        if (!this.isReadOnly) {
+            const activeTr = document.createElement('tr');
+            activeTr.style.backgroundColor = '#fff9c4';
+            activeTr.innerHTML = `<td>Next</td><td class="dealer-col">👉 ${this.players[this.currentDealerIndex]}</td><td colspan="4" style="color: #666; font-style: italic;">Awaiting score...</td>`;
+            tbody.appendChild(activeTr);
+        }
 
         const tfoot = document.getElementById('table-totals');
-        tfoot.innerHTML = `<td colspan="2">TOTAL</td>` + this.players.map(p => `<td>${totals[p]}</td>`).join('');
-        
-        // Store totals for end game logic
-        this.currentTotals = totals;
+        tfoot.innerHTML = `<td colspan="2">TOTAL</td>` + this.players.map(p => `<td>${this.currentTotals[p]}</td>`).join('');
+    },
+
+    // --- End Game & Skis Logic ---
+    setLiveSkis() {
+        this.skisTarget = document.getElementById('live-skis-player').value;
+        this.updateSkisUI();
+        this.toggleModule('end-game-module');
+        alert(`Skis condition set! Game will end automatically when ${this.skisTarget} deals next.`);
+        this.checkEndConditions(); // Check immediately in case it's already their turn
+    },
+
+    updateSkisUI() {
+        const statusEl = document.getElementById('current-skis-status');
+        if (this.skisTarget) {
+            statusEl.innerHTML = `Game ends on <strong>${this.skisTarget}'s</strong> deal.`;
+            statusEl.style.color = 'var(--primary-color)';
+        } else {
+            statusEl.innerHTML = `No active Skis target set.`;
+            statusEl.style.color = '#555';
+        }
     },
 
     checkEndConditions() {
-        if (!this.currentTotals) return;
+        if (!this.skisTarget || this.isReadOnly) return;
         
-        // Check Points Threshold
-        if (this.endSettings.type === 'points') {
-            const maxPoints = Math.max(...Object.values(this.currentTotals));
-            if (maxPoints >= this.endSettings.target) {
-                this.endGame();
-            }
-        }
-        
-        // Check Skis (Has a full rotation happened, and is it the target's turn to deal?)
-        if (this.endSettings.type === 'skis') {
-            if (this.rounds.length > 0 && this.players[this.currentDealerIndex] === this.endSettings.target) {
-                this.endGame();
-            }
+        // If there is at least 1 round and the NEXT dealer is the skis target, end game.
+        if (this.rounds.length > 0 && this.players[this.currentDealerIndex] === this.skisTarget) {
+            this.endGameManual();
         }
     },
 
-    async endGame() {
+    async endGameManual() {
         if(this.isProcessing) return;
+        if(!confirm("Are you sure you want to finish this game and declare a winner?")) return;
+        
         this.setLoading(true);
 
-        // Find winner
+        // Calculate Winner
         let winnerName = this.players[0];
         let highest = this.currentTotals[winnerName];
-
         this.players.forEach(p => {
             if(this.currentTotals[p] > highest) {
                 highest = this.currentTotals[p];
@@ -518,18 +672,20 @@ const app = {
         try {
             await this.db.from('games').update({ status: 'finished', winner: winnerName }).eq('id', this.currentGameId);
             
-            // Show Winner UI
+            document.getElementById('end-game-module').classList.add('hidden');
+            
+            // Show Winner
             const modal = document.getElementById('winner-modal');
-            const content = document.getElementById('winner-content');
+            const content = document.getElementById('winner-box');
             
             document.getElementById('winner-name').innerText = winnerName;
             document.getElementById('winner-score').innerText = `Winning Score: ${highest}`;
             
             if (winnerName === 'Dimi' || winnerName === 'Mile') {
-                content.className = 'modal-content pro-winner';
-                document.getElementById('winner-title').innerText = 'BEST PRO PLAYER';
+                content.style.borderColor = 'var(--accent-color)';
+                document.getElementById('winner-title').innerText = '🏆 BEST PRO PLAYER 🏆';
             } else {
-                content.className = 'modal-content';
+                content.style.borderColor = 'var(--primary-color)';
                 document.getElementById('winner-title').innerText = 'Game Over! Winner:';
             }
             
@@ -542,12 +698,7 @@ const app = {
         }
     },
 
-    closeModalAndHome() {
-        document.getElementById('winner-modal').classList.add('hidden');
-        this.showHome();
-    },
-
-    // Watch Score Feature
+    // --- Watch Mode ---
     async showWatch() {
         if(this.isProcessing) return;
         this.setLoading(true);
@@ -555,25 +706,36 @@ const app = {
         
         const watchScreen = document.getElementById('watch-screen');
         const listDiv = document.getElementById('games-list');
-        listDiv.innerHTML = '<p>Loading games...</p>';
+        listDiv.innerHTML = '<p style="text-align:center;">Loading games...</p>';
         watchScreen.classList.remove('hidden');
 
         try {
-            const { data, error } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(10);
+            const { data, error } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(15);
             if (error) throw error;
 
             if (data.length === 0) {
-                listDiv.innerHTML = '<p>No games found in database.</p>';
+                listDiv.innerHTML = '<p style="text-align:center;">No games found in database.</p>';
                 return;
             }
 
-            listDiv.innerHTML = data.map(g => `
-                <div class="card" style="border-left: 4px solid ${g.status === 'active' ? 'var(--secondary-color)' : 'var(--primary-color)'}">
-                    <p><strong>Status:</strong> ${g.status.toUpperCase()}</p>
-                    <p><strong>Created:</strong> ${new Date(g.created_at).toLocaleString()}</p>
-                    ${g.winner ? `<p style="color: var(--star-color)"><strong>Winner:</strong> ${g.winner}</p>` : ''}
+            listDiv.innerHTML = data.map(g => {
+                const isActive = g.status === 'active';
+                const dateStr = new Date(g.created_at).toLocaleDateString() + ' ' + new Date(g.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                return `
+                <div class="game-list-item ${isActive ? 'active-game' : 'finished-game'}">
+                    <div>
+                        <p style="font-size: 0.9em; color: #666;">${dateStr}</p>
+                        ${isActive 
+                            ? `<p style="color: var(--primary-color); font-weight: bold;">🔴 LIVE NOW</p>` 
+                            : `<p><strong>Winner:</strong> ${g.winner || 'None'}</p>`
+                        }
+                    </div>
+                    <button class="${isActive ? 'primary' : 'outline'}" onclick="app.resumeGame('${g.id}', true)">
+                        ${isActive ? '📺 Watch Live' : '📊 View Table'}
+                    </button>
                 </div>
-            `).join('');
+            `}).join('');
             
         } catch (err) {
             listDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`;
@@ -583,10 +745,7 @@ const app = {
     }
 };
 
-// Initialize App on Load
-document.addEventListener('DOMContentLoaded', () => {
-    app.init();
-});
+document.addEventListener('DOMContentLoaded', () => { app.init(); });
 </script>
 </body>
 </html>
