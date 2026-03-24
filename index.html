@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tarok Tracker Pro: Star Edition</title>
+    <title>Tarok Tracker Pro: Realtime Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -32,7 +32,7 @@
 
         .container { width: 100%; max-width: 800px; position: relative; }
 
-        /* Hero restored from live */
+        /* Restored Hero Decorations */
         .hero { text-align: center; margin-bottom: 30px; animation: fadeIn 1s ease-in; }
         .hero svg { filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.5)); margin-bottom: 10px; }
         .hero h1 { font-size: 2.5em; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-color); text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
@@ -49,26 +49,16 @@
             border: 1px solid rgba(0,0,0,0.1);
         }
 
-        /* Decorative accents restored */
+        /* Restored Suit Accents */
         .card-panel::before { content: '♠'; position: absolute; font-size: 40px; opacity: 0.05; top: 10px; left: 15px; pointer-events: none; }
         .card-panel::after { content: '♥'; position: absolute; font-size: 40px; opacity: 0.05; bottom: 10px; right: 15px; color: var(--primary-color); pointer-events: none; }
 
         h2, h3 { margin-bottom: 15px; color: var(--secondary-color); border-bottom: 2px solid #eee; padding-bottom: 5px;}
 
         button {
-            background-color: var(--secondary-color);
-            color: var(--text-light);
-            border: none;
-            padding: 12px 18px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin: 5px;
+            background-color: var(--secondary-color); color: var(--text-light); border: none;
+            padding: 12px 18px; border-radius: 8px; cursor: pointer; font-weight: bold;
+            transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin: 5px;
         }
         button:hover { opacity: 0.9; transform: translateY(-2px); }
         button.primary { background-color: var(--primary-color); }
@@ -77,22 +67,30 @@
 
         input, select {
             width: 100%; padding: 12px; margin-bottom: 10px;
-            border-radius: 8px; border: 1px solid #ccc;
-            background-color: #fff; color: var(--text-dark);
+            border-radius: 8px; border: 1px solid #ccc; background-color: #fff; color: var(--text-dark);
         }
 
         .hidden { display: none !important; }
         .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
         .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
 
+        /* Table Styles */
         .table-container { overflow-x: auto; background: white; border-radius: 8px; padding: 10px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; }
-        th { background-color: #f8f9fa; color: var(--secondary-color); }
+        th { background-color: #f8f9fa; color: var(--secondary-color); font-weight: bold; }
         
-        .star-badge { color: #d35400; font-weight: bold; font-size: 0.9em; display: block; }
+        .star-badge { color: #d35400; font-weight: bold; font-size: 0.85em; display: block; }
+        .dealer-col { font-weight: bold; color: var(--primary-color); }
         .spent-star-text { font-size: 0.7em; color: #aaa; text-transform: uppercase; }
 
+        /* Endgame Scenario Box */
+        #endgame-status {
+            background: #e3f2fd; border: 2px dashed #2196f3; padding: 15px;
+            text-align: center; font-weight: bold; color: #0d47a1; margin-top: -10px;
+        }
+
+        /* Modals */
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center;
@@ -125,7 +123,7 @@
         <h1>Tarok Tracker</h1>
     </div>
 
-    <div id="loader" class="hidden">Syncing Deck...</div>
+    <div id="loader" class="hidden">♠ Syncing Realtime Deck...</div>
 
     <div id="home-screen" class="card-panel">
         <div class="grid-2">
@@ -135,18 +133,18 @@
     </div>
 
     <div id="setup-screen" class="card-panel hidden">
-        <h2>New Game</h2>
+        <h2>Start New Game</h2>
         <label>Starting Dealer:</label>
         <select id="starting-dealer"></select>
         <div class="flex-row">
-            <button class="primary" onclick="app.startNewGame()">Deal Cards</button>
+            <button class="primary" onclick="app.startNewGame()">Start Game</button>
             <button class="outline" onclick="app.showHome()">Cancel</button>
         </div>
     </div>
 
     <div id="watch-screen" class="card-panel hidden">
         <div class="flex-row" style="justify-content: space-between;">
-            <h2>Game History</h2>
+            <h2>Live Games</h2>
             <button class="outline" onclick="app.showHome()">Back</button>
         </div>
         <div id="games-list"></div>
@@ -160,17 +158,17 @@
         </div>
 
         <div id="add-round-module" class="card-panel hidden" style="border-left: 5px solid var(--accent-color);">
-            <h3>Add Score</h3>
-            <div class="flex-row" style="background: #eee; padding: 10px; border-radius: 8px;">
+            <h3>Record Score</h3>
+            <div class="flex-row" style="background: #eee; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
                 <label><input type="radio" name="input-mode" value="team" checked onchange="app.toggleInputMode()"> Team</label>
                 <label style="margin-left: 15px;"><input type="radio" name="input-mode" value="manual" onchange="app.toggleInputMode()"> Manual</label>
             </div>
 
             <div id="team-inputs" class="grid-2">
-                <div><label>Player:</label><select id="team-p1" onchange="app.checkStarAvailability()"></select></div>
+                <div><label>Active Player:</label><select id="team-p1" onchange="app.checkStarAvailability()"></select></div>
                 <div><label>Partner:</label><select id="team-p2"></select></div>
                 <div style="grid-column: span 2;">
-                    <label>Points:</label><input type="number" id="team-points" placeholder="Base points">
+                    <label>Points Won/Lost:</label><input type="number" id="team-points" placeholder="Base score">
                     <p id="team-star-notice" style="font-size: 0.8em; color: var(--primary-color); font-weight: bold;"></p>
                 </div>
             </div>
@@ -178,28 +176,28 @@
             <div id="manual-inputs" class="hidden">
                 <div class="grid-2" id="manual-grid"></div>
                 <div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px;">
-                    <label>Spending a Star?</label>
+                    <label>Spending Star to Double?</label>
                     <select id="manual-star-spender"><option value="none">-- No one --</option></select>
                 </div>
             </div>
 
-            <button class="primary" onclick="app.submitRound()" style="width: 100%; margin-top: 15px;">Save Round</button>
-            <button class="outline" onclick="app.undoLastRound()" style="width: 100%;">Undo Last</button>
+            <button class="primary" onclick="app.submitRound()" style="width: 100%; margin-top: 15px;">Submit Round</button>
+            <button class="outline" onclick="app.undoLastRound()" style="width: 100%;">Undo Last Round</button>
         </div>
 
         <div id="end-game-module" class="card-panel hidden" style="border-left: 5px solid var(--primary-color);">
-            <h3>End Game Options</h3>
+            <h3>Game Options</h3>
             <div style="background: #fff3f3; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-                <label>Set Skis Target:</label>
+                <label>Set Skis Player:</label>
                 <select id="live-skis-player"></select>
-                <button class="outline" onclick="app.setLiveSkis()" style="width: 100%;">Set Skis</button>
+                <button class="outline" onclick="app.setLiveSkis()" style="width: 100%;">Set Skis Target</button>
             </div>
-            <button class="primary" onclick="app.endGameManual()" style="width: 100%;">🛑 Finalize & Penalty Apply</button>
+            <button class="primary" onclick="app.endGameManual()" style="width: 100%;">🛑 Force End (Calculate Penalties)</button>
         </div>
 
         <div class="card-panel table-container">
             <div class="flex-row" style="justify-content: space-between;">
-                <h3 style="border:none;">Scoreboard</h3>
+                <h3 style="border:none; margin:0;">Live Scoreboard</h3>
                 <button id="exit-watch-btn" class="outline hidden" onclick="app.showWatch()">Exit Watch</button>
             </div>
             <table id="score-table">
@@ -208,16 +206,20 @@
                 <tfoot><tr id="table-totals" style="background: #f1f8e9; font-weight: bold;"></tr></tfoot>
             </table>
         </div>
+
+        <div id="endgame-status" class="card-panel">
+            Current Scenario: Manual End
+        </div>
     </div>
 </div>
 
 <div id="active-game-modal" class="modal-overlay hidden">
     <div class="modal-content">
-        <h2>Live Game Detected</h2>
-        <p>Resume the current session or start a new one?</p>
+        <h2>Live Game Found</h2>
+        <p>A session is already active. Continue or start fresh?</p>
         <div class="flex-row" style="justify-content: center; margin-top: 20px;">
-            <button class="primary" onclick="app.resumeGame(app.pendingActiveGameId, false)">Resume</button>
-            <button class="outline" onclick="app.abandonActiveAndStartNew()">Start New</button>
+            <button class="primary" onclick="app.resumeGame(app.pendingActiveGameId, false)">Continue</button>
+            <button class="outline" onclick="app.abandonActiveAndStartNew()">New Game</button>
         </div>
     </div>
 </div>
@@ -237,6 +239,7 @@ const app = {
     supabaseUrl: 'https://kkgaceamcqqfacygtvtr.supabase.co',
     supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
     db: null,
+    realtimeChannel: null,
 
     players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
     currentGameId: null,
@@ -266,6 +269,35 @@ const app = {
         document.getElementById('team-p2').selectedIndex = 1;
     },
 
+    // --- Realtime Magic ---
+    subscribeToGame(gameId) {
+        if (this.realtimeChannel) this.db.removeChannel(this.realtimeChannel);
+
+        this.realtimeChannel = this.db.channel('live-tarok')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` }, (payload) => {
+                this.rounds.push(payload.new);
+                this.recalculateStateFromRounds();
+                this.renderTable();
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` }, () => {
+                this.refreshFullData(gameId); // Refresh all if a round is undone
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` }, (payload) => {
+                if (payload.new.status === 'finished') {
+                    this.showFinalWinnerPopup(payload.new.winner);
+                }
+            })
+            .subscribe();
+    },
+
+    async refreshFullData(gameId) {
+        const { data } = await this.db.from('rounds').select('*').eq('game_id', gameId).order('round_number', { ascending: true });
+        this.rounds = data || [];
+        this.recalculateStateFromRounds();
+        this.renderTable();
+    },
+
+    // --- Logic Restored ---
     setLoading(active) { document.getElementById('loader').classList.toggle('hidden', !active); },
     hideAllScreens() { ['home-screen', 'setup-screen', 'watch-screen', 'game-screen'].forEach(id => document.getElementById(id).classList.add('hidden')); this.closeModals(); },
     showHome() { this.hideAllScreens(); document.getElementById('home-screen').classList.remove('hidden'); },
@@ -299,12 +331,13 @@ const app = {
         this.setLoading(true);
         this.resetState();
         this.currentDealerIndex = this.players.indexOf(document.getElementById('starting-dealer').value);
-        try {
-            const { data, error } = await this.db.from('games').insert([{ status: 'active' }]).select('id').single();
-            if (error) throw error;
+        const { data, error } = await this.db.from('games').insert([{ status: 'active' }]).select('id').single();
+        if (!error) {
             this.currentGameId = data.id;
+            this.subscribeToGame(data.id);
             this.setupUI(false);
-        } catch (e) { alert(e.message); } finally { this.setLoading(false); }
+        }
+        this.setLoading(false);
     },
 
     async resumeGame(id, readOnly) {
@@ -312,12 +345,12 @@ const app = {
         this.closeModals();
         this.resetState();
         this.currentGameId = id;
-        try {
-            const { data } = await this.db.from('rounds').select('*').eq('game_id', id).order('round_number', { ascending: true });
-            this.rounds = data || [];
-            this.recalculateStateFromRounds();
-            this.setupUI(readOnly);
-        } catch (e) { alert(e.message); } finally { this.setLoading(false); }
+        const { data } = await this.db.from('rounds').select('*').eq('game_id', id).order('round_number', { ascending: true });
+        this.rounds = data || [];
+        this.recalculateStateFromRounds();
+        this.subscribeToGame(id);
+        this.setupUI(readOnly);
+        this.setLoading(false);
     },
 
     resetState() { this.rounds = []; this.stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 }; this.skisTarget = null; },
@@ -333,6 +366,7 @@ const app = {
         });
         const lastRound = this.rounds.filter(r => r.scores.type !== 'global_star').pop();
         if (lastRound) this.currentDealerIndex = (this.players.indexOf(lastRound.scores.dealer) + 1) % 4;
+        else this.currentDealerIndex = 0;
     },
 
     setupUI(readOnly) {
@@ -348,20 +382,12 @@ const app = {
     checkStarAvailability() {
         const p1 = document.getElementById('team-p1').value;
         const hasStar = this.stars[p1] > 0;
-        document.getElementById('team-star-notice').innerText = hasStar ? `⭐ Spending 1 star (Available: ${this.stars[p1]}) - Doubling!` : "No stars available.";
+        document.getElementById('team-star-notice').innerText = hasStar ? `⭐ Spending star (Available: ${this.stars[p1]}) - Doubling base points!` : "No stars available.";
     },
 
     async earnStarForAll() {
-        if (!confirm("Add 1 star to everyone?")) return;
-        this.setLoading(true);
         const roundData = { game_id: this.currentGameId, round_number: this.rounds.length + 1, scores: { type: 'global_star', dealer: this.players[this.currentDealerIndex] } };
-        const { data, error } = await this.db.from('rounds').insert([roundData]).select('id').single();
-        if (!error) {
-            this.rounds.push({ ...roundData, id: data.id });
-            this.players.forEach(p => this.stars[p]++);
-            this.renderTable();
-        }
-        this.setLoading(false);
+        await this.db.from('rounds').insert([roundData]);
     },
 
     async submitRound() {
@@ -384,26 +410,15 @@ const app = {
         }
 
         const roundData = { game_id: this.currentGameId, round_number: this.rounds.length + 1, scores: { type: 'points', dealer: this.players[this.currentDealerIndex], points: roundScores, star_spent_by: starSpender } };
-        const { data, error } = await this.db.from('rounds').insert([roundData]).select('id').single();
-        if (!error) {
-            this.rounds.push({ ...roundData, id: data.id });
-            if (starSpender !== 'none') this.stars[starSpender]--;
-            this.currentDealerIndex = (this.currentDealerIndex + 1) % 4;
-            this.renderTable();
-            this.toggleModule('add-round-module');
-            this.checkEndConditions();
-        }
+        await this.db.from('rounds').insert([roundData]);
+        document.getElementById('add-round-module').classList.add('hidden');
         this.setLoading(false);
     },
 
     async undoLastRound() {
         if (this.rounds.length === 0) return;
-        this.setLoading(true);
-        const last = this.rounds.pop();
+        const last = this.rounds[this.rounds.length - 1];
         await this.db.from('rounds').delete().eq('id', last.id);
-        this.recalculateStateFromRounds();
-        this.renderTable();
-        this.setLoading(false);
     },
 
     renderTable() {
@@ -416,9 +431,9 @@ const app = {
         this.rounds.forEach(r => {
             const tr = document.createElement('tr');
             if (r.scores.type === 'global_star') {
-                tr.innerHTML = `<td>${r.round_number}</td><td colspan="5" style="background:#fffde7; font-size: 0.8em;">🌟 Global Star Granted</td>`;
+                tr.innerHTML = `<td>${r.round_number}</td><td colspan="5" style="background:#fffde7; font-size: 0.8em; font-weight:bold;">🌟 GLOBAL STAR ROUND</td>`;
             } else {
-                let html = `<td>${r.round_number}</td><td style="color:var(--primary-color);font-weight:bold">${r.scores.dealer}</td>`;
+                let html = `<td>${r.round_number}</td><td class="dealer-col">${r.scores.dealer}</td>`;
                 this.players.forEach(p => {
                     const pts = r.scores.points[p] || 0; totals[p] += pts;
                     const spnt = (r.scores.star_spent_by === p) ? '<br><span class="spent-star-text">Used ⭐</span>' : '';
@@ -428,18 +443,40 @@ const app = {
             }
             body.appendChild(tr);
         });
-        if (!this.isReadOnly) body.innerHTML += `<tr><td>Next</td><td style="color:var(--primary-color)">👉 ${this.players[this.currentDealerIndex]}</td><td colspan="4"></td></tr>`;
+        if (!this.isReadOnly) body.innerHTML += `<tr><td>Next</td><td class="dealer-col">👉 ${this.players[this.currentDealerIndex]}</td><td colspan="4"></td></tr>`;
         document.getElementById('table-totals').innerHTML = `<td colspan="2">TOTAL</td>` + this.players.map(p => `<td>${totals[p]}</td>`).join('');
         this.currentTotals = totals;
+        this.updateEndgameUI();
+        this.checkEndConditions();
     },
 
-    setLiveSkis() { this.skisTarget = document.getElementById('live-skis-player').value; alert(`Game ends when ${this.skisTarget} deals.`); this.checkEndConditions(); },
+    updateEndgameUI() {
+        const statusBox = document.getElementById('endgame-status');
+        if (this.skisTarget) {
+            statusBox.style.background = "#fff3e0"; statusBox.style.color = "#e65100"; statusBox.style.border = "2px dashed #ff9800";
+            statusBox.innerHTML = `Endgame Scenario: ⛷️ SKIS - Ends on ${this.skisTarget}'s deal.`;
+        } else {
+            statusBox.style.background = "#e3f2fd"; statusBox.style.color = "#0d47a1"; statusBox.style.border = "2px dashed #2196f3";
+            statusBox.innerHTML = `Endgame Scenario: 🎯 Points Pursuit (Manual End)`;
+        }
+    },
 
-    checkEndConditions() { if (this.skisTarget && this.rounds.length > 0 && this.players[this.currentDealerIndex] === this.skisTarget) { this.endGameManual(); } },
+    setLiveSkis() { 
+        this.skisTarget = document.getElementById('live-skis-player').value; 
+        this.updateEndgameUI();
+        this.toggleModule('end-game-module');
+        this.checkEndConditions(); 
+    },
+
+    checkEndConditions() { 
+        if (!this.isReadOnly && this.skisTarget && this.rounds.length > 0 && this.players[this.currentDealerIndex] === this.skisTarget) { 
+            this.endGameManual(); 
+        } 
+    },
 
     async endGameManual() {
         this.setLoading(true);
-        let winner = this.players[0], max = -9999, breakHtml = '<strong>Penalties:</strong><br>';
+        let winner = this.players[0], max = -9999, breakHtml = '<strong>Penalty Breakdown:</strong><br>';
         this.players.forEach(p => {
             const count = this.stars[p];
             const penalty = count > 0 ? (20 * Math.pow(2, count - 1)) : 0;
@@ -448,22 +485,28 @@ const app = {
             if (final > max) { max = final; winner = p; }
         });
         await this.db.from('games').update({ status: 'finished', winner: winner }).eq('id', this.currentGameId);
-        document.getElementById('winner-name').innerText = winner;
-        document.getElementById('winner-score').innerText = `Final Score: ${max}`;
-        document.getElementById('penalty-breakdown').innerHTML = breakHtml;
-        const box = document.getElementById('winner-box');
-        if (winner === 'Dimi' || winner === 'Mile') { box.style.border = '5px solid var(--accent-color)'; document.getElementById('winner-title').innerText = '🏆 BEST PRO PLAYER 🏆'; }
-        document.getElementById('winner-modal').classList.remove('hidden');
         this.setLoading(false);
+    },
+
+    showFinalWinnerPopup(winnerName) {
+        let max = this.currentTotals[winnerName];
+        document.getElementById('winner-name').innerText = winnerName;
+        document.getElementById('winner-score').innerText = `Final Score: ${max}`;
+        const box = document.getElementById('winner-box');
+        if (winnerName === 'Dimi' || winnerName === 'Mile') { 
+            box.style.border = '6px solid var(--accent-color)'; 
+            document.getElementById('winner-title').innerText = '🏆 BEST PRO PLAYER 🏆'; 
+        }
+        document.getElementById('winner-modal').classList.remove('hidden');
     },
 
     async showWatch() {
         this.setLoading(true); this.hideAllScreens(); document.getElementById('watch-screen').classList.remove('hidden');
         const { data } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(10);
         document.getElementById('games-list').innerHTML = data.map(g => `
-            <div class="game-list-item" style="background:#fff; border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 8px; display:flex; justify-content:space-between;">
-                <div><span style="font-size:0.7em;">${new Date(g.created_at).toLocaleDateString()}</span><br><strong>${g.status === 'active' ? '🔴 Live' : g.winner}</strong></div>
-                <button class="outline" onclick="app.resumeGame('${g.id}', true)">View</button>
+            <div class="game-list-item" style="background:#fff; border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
+                <div><span style="font-size:0.7em;">${new Date(g.created_at).toLocaleDateString()}</span><br><strong>${g.status === 'active' ? '🔴 LIVE' : 'Winner: ' + (g.winner || 'N/A')}</strong></div>
+                <button class="${g.status === 'active' ? 'primary' : 'outline'}" onclick="app.resumeGame('${g.id}', true)">${g.status === 'active' ? 'Watch' : 'View'}</button>
             </div>
         `).join('');
         this.setLoading(false);
