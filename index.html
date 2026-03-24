@@ -32,7 +32,6 @@
 
         .container { width: 100%; max-width: 800px; position: relative; }
 
-        /* Hero restored from live */
         .hero { text-align: center; margin-bottom: 30px; animation: fadeIn 1s ease-in; }
         .hero svg { filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.5)); margin-bottom: 10px; }
         .hero h1 { font-size: 2.5em; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-color); text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
@@ -49,7 +48,6 @@
             border: 1px solid rgba(0,0,0,0.1);
         }
 
-        /* Decorative accents restored */
         .card-panel::before { content: '♠'; position: absolute; font-size: 40px; opacity: 0.05; top: 10px; left: 15px; pointer-events: none; }
         .card-panel::after { content: '♥'; position: absolute; font-size: 40px; opacity: 0.05; bottom: 10px; right: 15px; color: var(--primary-color); pointer-events: none; }
 
@@ -79,6 +77,13 @@
             width: 100%; padding: 12px; margin-bottom: 10px;
             border-radius: 8px; border: 1px solid #ccc;
             background-color: #fff; color: var(--text-dark);
+        }
+
+        input[type="checkbox"], input[type="radio"] {
+            width: auto;
+            margin-right: 5px;
+            margin-bottom: 0;
+            transform: scale(1.2);
         }
 
         .hidden { display: none !important; }
@@ -162,8 +167,8 @@
         <div id="add-round-module" class="card-panel hidden" style="border-left: 5px solid var(--accent-color);">
             <h3>Add Score</h3>
             <div class="flex-row" style="background: #eee; padding: 10px; border-radius: 8px;">
-                <label><input type="radio" name="input-mode" value="team" checked onchange="app.toggleInputMode()"> Team</label>
-                <label style="margin-left: 15px;"><input type="radio" name="input-mode" value="manual" onchange="app.toggleInputMode()"> Manual</label>
+                <label style="display: flex; align-items: center;"><input type="radio" name="input-mode" value="team" checked onchange="app.toggleInputMode()"> Team</label>
+                <label style="display: flex; align-items: center; margin-left: 15px;"><input type="radio" name="input-mode" value="manual" onchange="app.toggleInputMode()"> Manual</label>
             </div>
 
             <div id="team-inputs" class="grid-2">
@@ -183,6 +188,12 @@
                 </div>
             </div>
 
+            <div style="margin-top: 15px; background: #fffde7; padding: 10px; border-radius: 8px; border: 1px dashed #ffd700;">
+                <label style="display: flex; align-items: center; color: #d35400; font-weight: bold; cursor: pointer;">
+                    <input type="checkbox" id="grant-global-star"> 🌟 Grant a Star to all players this round
+                </label>
+            </div>
+
             <button class="primary" onclick="app.submitRound()" style="width: 100%; margin-top: 15px;">Save Round</button>
             <button class="outline" onclick="app.undoLastRound()" style="width: 100%;">Undo Last</button>
         </div>
@@ -192,7 +203,12 @@
             <div style="background: #fff3f3; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
                 <label>Set Skis Target:</label>
                 <select id="live-skis-player"></select>
-                <button class="outline" onclick="app.setLiveSkis()" style="width: 100%;">Set Skis</button>
+                <button class="outline" onclick="app.setLiveSkis()" style="width: 100%;">Set Skis Target</button>
+            </div>
+            <div style="background: #e3f2fd; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+                <label>Set Point Threshold:</label>
+                <input type="number" id="live-point-threshold" placeholder="e.g. 1000">
+                <button class="outline" onclick="app.setLiveThreshold()" style="width: 100%;">Set Point Target</button>
             </div>
             <button class="primary" onclick="app.endGameManual()" style="width: 100%;">🛑 Finalize & Penalty Apply</button>
         </div>
@@ -205,7 +221,7 @@
             <table id="score-table">
                 <thead><tr id="table-header"></tr></thead>
                 <tbody id="table-body"></tbody>
-                <tfoot><tr id="table-totals" style="background: #f1f8e9; font-weight: bold;"></tr></tfoot>
+                <<tfoot><tr id="table-totals" style="background: #f1f8e9; font-weight: bold;"></tr></tfoot>
             </table>
         </div>
     </div>
@@ -245,6 +261,7 @@ const app = {
     stars: { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 },
     currentTotals: {},
     skisTarget: null,
+    pointTarget: null,
     isReadOnly: false,
 
     init() {
@@ -313,26 +330,44 @@ const app = {
         this.resetState();
         this.currentGameId = id;
         try {
-            const { data } = await this.db.from('rounds').select('*').eq('game_id', id).order('round_number', { ascending: true });
-            this.rounds = data || [];
+            const { data: gameData } = await this.db.from('games').select('*').eq('id', id).single();
+            if (gameData && gameData.endrule) {
+                if (gameData.endrule.type === 'skis') this.skisTarget = gameData.endrule.target;
+                if (gameData.endrule.type === 'points') this.pointTarget = gameData.endrule.target;
+            }
+
+            const { data: roundData } = await this.db.from('rounds').select('*').eq('game_id', id).order('round_number', { ascending: true });
+            this.rounds = roundData || [];
             this.recalculateStateFromRounds();
             this.setupUI(readOnly);
         } catch (e) { alert(e.message); } finally { this.setLoading(false); }
     },
 
-    resetState() { this.rounds = []; this.stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 }; this.skisTarget = null; },
+    resetState() { 
+        this.rounds = []; 
+        this.stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 }; 
+        this.skisTarget = null; 
+        this.pointTarget = null;
+    },
 
     recalculateStateFromRounds() {
         this.stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
         this.rounds.forEach(r => {
             if (r.scores.type === 'global_star') {
                 this.players.forEach(p => this.stars[p]++);
-            } else if (r.scores.star_spent_by && r.scores.star_spent_by !== 'none') {
-                this.stars[r.scores.star_spent_by]--;
+            } else if (r.scores.type === 'points') {
+                if (r.scores.star_spent_by && r.scores.star_spent_by !== 'none') {
+                    this.stars[r.scores.star_spent_by]--;
+                }
+                if (r.scores.granted_global_star) {
+                    this.players.forEach(p => this.stars[p]++);
+                }
             }
         });
-        const lastRound = this.rounds.filter(r => r.scores.type !== 'global_star').pop();
-        if (lastRound) this.currentDealerIndex = (this.players.indexOf(lastRound.scores.dealer) + 1) % 4;
+        const pointsRounds = this.rounds.filter(r => r.scores.type !== 'global_star');
+        if (pointsRounds.length > 0) {
+            this.currentDealerIndex = (this.players.indexOf(pointsRounds[pointsRounds.length - 1].scores.dealer) + 1) % 4;
+        }
     },
 
     setupUI(readOnly) {
@@ -354,7 +389,7 @@ const app = {
     async earnStarForAll() {
         if (!confirm("Add 1 star to everyone?")) return;
         this.setLoading(true);
-        const roundData = { game_id: this.currentGameId, round_number: this.rounds.length + 1, scores: { type: 'global_star', dealer: this.players[this.currentDealerIndex] } };
+        const roundData = { game_id: this.currentGameId, round_number: this.rounds.length + 1, scores: { type: 'global_star' } };
         const { data, error } = await this.db.from('rounds').insert([roundData]).select('id').single();
         if (!error) {
             this.rounds.push({ ...roundData, id: data.id });
@@ -367,6 +402,7 @@ const app = {
     async submitRound() {
         this.setLoading(true);
         const isTeam = document.querySelector('input[name="input-mode"]:checked').value === 'team';
+        const grantStar = document.getElementById('grant-global-star').checked;
         let roundScores = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
         let starSpender = 'none';
 
@@ -383,12 +419,31 @@ const app = {
             this.players.forEach(p => roundScores[p] = (parseInt(document.getElementById(`manual-${p}`).value) || 0) * mult);
         }
 
-        const roundData = { game_id: this.currentGameId, round_number: this.rounds.length + 1, scores: { type: 'points', dealer: this.players[this.currentDealerIndex], points: roundScores, star_spent_by: starSpender } };
+        const roundData = { 
+            game_id: this.currentGameId, 
+            round_number: this.rounds.length + 1, 
+            scores: { 
+                type: 'points', 
+                dealer: this.players[this.currentDealerIndex], 
+                points: roundScores, 
+                star_spent_by: starSpender,
+                granted_global_star: grantStar
+            } 
+        };
+
         const { data, error } = await this.db.from('rounds').insert([roundData]).select('id').single();
+        
         if (!error) {
             this.rounds.push({ ...roundData, id: data.id });
+            
             if (starSpender !== 'none') this.stars[starSpender]--;
+            if (grantStar) this.players.forEach(p => this.stars[p]++);
+            
             this.currentDealerIndex = (this.currentDealerIndex + 1) % 4;
+            
+            document.getElementById('grant-global-star').checked = false; // Reset checkbox
+            if (isTeam) document.getElementById('team-points').value = ''; // Reset input
+            
             this.renderTable();
             this.toggleModule('add-round-module');
             this.checkEndConditions();
@@ -413,12 +468,15 @@ const app = {
         body.innerHTML = '';
         const totals = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
 
+        let displayRoundNum = 1;
+
         this.rounds.forEach(r => {
             const tr = document.createElement('tr');
             if (r.scores.type === 'global_star') {
-                tr.innerHTML = `<td>${r.round_number}</td><td colspan="5" style="background:#fffde7; font-size: 0.8em;">🌟 Global Star Granted</td>`;
+                tr.innerHTML = `<td>-</td><td colspan="5" style="background:#fffde7; font-size: 0.8em;">🌟 Global Star Granted</td>`;
             } else {
-                let html = `<td>${r.round_number}</td><td style="color:var(--primary-color);font-weight:bold">${r.scores.dealer}</td>`;
+                let badge = r.scores.granted_global_star ? '<br><span style="font-size:0.8em">🌟</span>' : '';
+                let html = `<td>${displayRoundNum++}${badge}</td><td style="color:var(--primary-color);font-weight:bold">${r.scores.dealer}</td>`;
                 this.players.forEach(p => {
                     const pts = r.scores.points[p] || 0; totals[p] += pts;
                     const spnt = (r.scores.star_spent_by === p) ? '<br><span class="spent-star-text">Used ⭐</span>' : '';
@@ -428,14 +486,41 @@ const app = {
             }
             body.appendChild(tr);
         });
+        
         if (!this.isReadOnly) body.innerHTML += `<tr><td>Next</td><td style="color:var(--primary-color)">👉 ${this.players[this.currentDealerIndex]}</td><td colspan="4"></td></tr>`;
         document.getElementById('table-totals').innerHTML = `<td colspan="2">TOTAL</td>` + this.players.map(p => `<td>${totals[p]}</td>`).join('');
         this.currentTotals = totals;
     },
 
-    setLiveSkis() { this.skisTarget = document.getElementById('live-skis-player').value; alert(`Game ends when ${this.skisTarget} deals.`); this.checkEndConditions(); },
+    async setLiveSkis() { 
+        this.skisTarget = document.getElementById('live-skis-player').value; 
+        this.pointTarget = null;
+        alert(`Target Set: Game ends when ${this.skisTarget} deals.`); 
+        await this.db.from('games').update({ endrule: { type: 'skis', target: this.skisTarget } }).eq('id', this.currentGameId);
+        this.checkEndConditions(); 
+    },
 
-    checkEndConditions() { if (this.skisTarget && this.rounds.length > 0 && this.players[this.currentDealerIndex] === this.skisTarget) { this.endGameManual(); } },
+    async setLiveThreshold() {
+        const val = parseInt(document.getElementById('live-point-threshold').value);
+        if (!val) return;
+        this.pointTarget = val;
+        this.skisTarget = null;
+        alert(`Target Set: Game ends when a player hits ${this.pointTarget} points.`);
+        await this.db.from('games').update({ endrule: { type: 'points', target: this.pointTarget } }).eq('id', this.currentGameId);
+        this.checkEndConditions();
+    },
+
+    checkEndConditions() { 
+        if (this.skisTarget && this.rounds.length > 0 && this.players[this.currentDealerIndex] === this.skisTarget) { 
+            this.endGameManual(); 
+        } 
+        if (this.pointTarget) {
+            const maxScore = Math.max(...Object.values(this.currentTotals));
+            if (maxScore >= this.pointTarget) {
+                this.endGameManual();
+            }
+        }
+    },
 
     async endGameManual() {
         this.setLoading(true);
