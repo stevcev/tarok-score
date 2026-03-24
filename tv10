@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarok TV: Pro Broadcast Elite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { 
+            --bg-dark: #0a0e12; --surface: #161b22; --accent: #ffd700; 
+            --primary: #4caf50; --text: #ffffff; --header-bg: #1f2937;
+            --negative: #ff5252; --rule-blue: #2196f3; --rule-purple: #9c27b0;
+            --news-red: #d32f2f; --news-dark: #0a0a0a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; background: rgba(255, 215, 0, 0.2); }
+            to { transform: translateX(0); opacity: 1; background: transparent; }
+        }
+        .new-row { animation: slideIn 0.8s ease-out forwards; }
+
+        /* --- HYPED WAITING SCREEN --- */
+        #waiting-screen {
+            position: fixed; inset: 0; background: radial-gradient(circle at center, #1a202c 0%, #000 100%);
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center; z-index: 4000;
+            padding: 40px; text-align: center;
+        }
+        
+        .waiting-top { display: flex; justify-content: space-between; width: 100%; align-items: flex-start; }
+        .info-pill { background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 10px; border-left: 5px solid var(--accent); text-align: left; }
+        .info-pill h4 { font-size: 0.8rem; text-transform: uppercase; opacity: 0.7; margin-bottom: 5px; }
+        .info-pill p { font-size: 1.5rem; font-weight: bold; }
+
+        .hype-center { animation: zoomIn 1s ease-out; }
+        @keyframes zoomIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .waiting-title { font-size: 5rem; font-weight: 900; letter-spacing: -2px; line-height: 0.9; margin-bottom: 20px; }
+        .waiting-subtitle { font-size: 2rem; color: var(--accent); text-transform: uppercase; letter-spacing: 10px; animation: blink 1.5s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        .history-ticker { 
+            width: 100%; background: var(--news-red); padding: 15px; overflow: hidden; white-space: nowrap; 
+            border-top: 4px solid #fff; border-bottom: 4px solid #fff;
+        }
+        .ticker-content { display: inline-block; animation: ticker 30s linear infinite; font-weight: bold; font-size: 1.2rem; }
+        @keyframes ticker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+        .history-item { margin-right: 50px; display: inline-block; }
+
+        /* --- DYNAMIC NEWS ALERTS (NEW & EDITED) --- */
+        #fullscreen-alert {
+            position: fixed; top: 0; left: -100%; width: 100%; height: 100%;
+            background: radial-gradient(circle, #2a2a2a 0%, var(--news-dark) 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 5000; transition: left 0.6s cubic-bezier(0.85, 0, 0.15, 1);
+            border-left: 20px solid var(--accent); border-right: 20px solid var(--accent);
+        }
+        #fullscreen-alert.active { left: 0; animation: newsFlash 0.5s step-end 3; }
+        #fullscreen-alert.exit { left: 100%; }
+
+        @keyframes newsFlash {
+            0%, 100% { background: radial-gradient(circle, #2a2a2a 0%, var(--news-dark) 100%); }
+            50% { background: var(--news-red); }
+        }
+
+        .alert-tag { 
+            font-size: 3.5rem; font-weight: 900; padding: 15px 60px; 
+            text-transform: uppercase; letter-spacing: 8px; margin-bottom: 30px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+        .alert-tag.red { background: var(--news-red); color: white; }
+        .alert-tag.gold { background: var(--accent); color: black; animation: pulseGold 1s infinite; }
+        .alert-tag.blue { background: var(--rule-blue); color: white; }
+
+        @keyframes pulseGold {
+            0% { box-shadow: 0 0 0px var(--accent); }
+            50% { box-shadow: 0 0 40px var(--accent); }
+            100% { box-shadow: 0 0 0px var(--accent); }
+        }
+
+        .alert-text { 
+            font-size: 8rem; font-weight: 900; text-align: center; color: white; 
+            text-transform: uppercase; line-height: 1.1; 
+            transform: scale(0.5); opacity: 0; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #fullscreen-alert.active .alert-text { transform: scale(1); opacity: 1; }
+
+        /* --- WINNER OVERLAY --- */
+        #winner-overlay {
+            position: fixed; inset: 0; background: radial-gradient(circle, #1a202c 0%, #000 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000;
+            opacity: 0; pointer-events: none; transition: opacity 1s ease;
+        }
+        #winner-overlay.active { opacity: 1; pointer-events: auto; }
+        
+        .winner-card h1 { animation: bounce 2s infinite; text-shadow: 0 0 30px var(--accent); }
+        @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 40% {transform: translateY(-30px);} 60% {transform: translateY(-15px);} }
+
+        /* --- EXISTING STYLES --- */
+        .tv-container { display: flex; flex-direction: column; height: 100vh; width: 100%; padding: 20px; }
+        header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 20px; background: var(--surface); border-radius: 15px; 
+            margin-bottom: 20px; border-bottom: 4px solid var(--accent); 
+        }
+        .status-pill { padding: 5px 15px; border-radius: 5px; font-weight: bold; font-size: 0.8rem; vertical-align: middle; margin-left: 8px; text-transform: uppercase; }
+        #status-tag { background: var(--negative); }
+        #rule-tag { background: var(--rule-blue); display: none; }
+        .next-dealer-box { font-size: 0.9rem; text-align: right; opacity: 0.8; }
+        .next-dealer-name { color: var(--accent); font-weight: bold; font-size: 1.2rem; }
+        .table-frame { flex-grow: 1; overflow-y: auto; background: var(--surface); border-radius: 15px; scroll-behavior: smooth; }
+        table { width: 100%; border-collapse: collapse; font-size: 1.8rem; }
+        thead { position: sticky; top: 0; background: var(--header-bg); z-index: 10; }
+        th { padding: 20px; color: var(--accent); border-bottom: 2px solid #30363d; }
+        td { padding: 15px; text-align: center; border-bottom: 1px solid #30363d; }
+        tfoot { position: sticky; bottom: 0; background: var(--primary); font-size: 2.2rem; font-weight: bold; }
+
+        #stats-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.98);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000;
+            opacity: 0; pointer-events: none; transition: opacity 1s ease;
+        }
+        #stats-overlay.active { opacity: 1; pointer-events: auto; }
+        .hidden { display: none !important; }
+        .star-row { background: rgba(255, 215, 0, 0.1); color: var(--accent); font-weight: bold; font-size: 1.4rem; }
+    </style>
+</head>
+<body>
+
+    <div id="waiting-screen" class="hidden">
+        <div class="waiting-top">
+            <div class="info-pill">
+                <h4>Local Weather</h4>
+                <p id="weather-display">Skopje: 12°C ☁️</p>
+            </div>
+            <div class="info-pill">
+                <h4>Current Time</h4>
+                <p id="clock-display">00:00:00</p>
+            </div>
+        </div>
+
+        <div class="hype-center">
+            <h1 class="waiting-title">GAME STARTING<br><span style="color:var(--accent)">IMMINENT</span></h1>
+            <p class="waiting-subtitle">Broadcasting Live from Oaza</p>
+        </div>
+
+        <div class="history-ticker">
+            <div id="ticker-target" class="ticker-content">
+                <span class="history-item">LOADING PREVIOUS RESULTS...</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="fullscreen-alert">
+        <div id="alert-tag" class="alert-tag">UPDATE</div>
+        <div id="alert-text" class="alert-text">SCORES CALCULATED</div>
+    </div>
+
+    <div class="tv-container">
+        <header>
+            <div>
+                <h1 style="display:inline-block; margin-right: 15px;">TAROK BROADCAST</h1>
+                <span id="status-tag" class="status-pill">LIVE</span>
+                <span id="rule-tag" class="status-pill"></span>
+            </div>
+            <div class="next-dealer-box">
+                UP NEXT:<br>
+                <span id="next-dealer-display" class="next-dealer-name">-</span>
+            </div>
+        </header>
+
+        <div class="table-frame" id="scroll-box">
+            <table id="main-table">
+                <thead><tr id="table-header"></tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+
+        <table style="margin-top: -2px;">
+            <tfoot id="table-totals"></tfoot>
+        </table>
+    </div>
+
+    <div id="winner-overlay">
+        <div class="winner-card" style="text-align: center;">
+            <h1 style="font-size: 12rem;">👑</h1>
+            <h2 id="winner-name" style="font-size: 8rem; color: var(--accent); text-transform: uppercase;">-</h2>
+            <p style="font-size: 3rem; margin-top: 20px; letter-spacing: 5px;">CHAMPION DECLARED</p>
+        </div>
+    </div>
+
+    <div id="stats-overlay">
+        <div id="podium-container" style="width: 80%;"></div>
+    </div>
+
+<script>
+const watchApp = {
+    supabaseUrl: 'https://kkgaceamcqqfacygtvtr.supabase.co',
+    supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
+    db: null,
+    players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
+    currentGame: null,
+    isInitialRender: true,
+    alertQueue: [],
+    isAlertPlaying: false,
+
+    async init() {
+        this.db = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+        this.updateClock();
+        setInterval(() => this.updateClock(), 1000);
+        this.fetchWeather();
+        this.checkInitialState();
+    },
+
+    updateClock() {
+        const now = new Date();
+        document.getElementById('clock-display').innerText = now.toLocaleTimeString('en-GB');
+    },
+
+    async fetchWeather() {
+        try {
+            const temps = ["12°C Clear", "14°C Sunny", "11°C Overcast"];
+            const randomWeather = temps[Math.floor(Math.random() * temps.length)];
+            document.getElementById('weather-display').innerText = `Skopje: ${randomWeather}`;
+        } catch(e) {}
+    },
+
+    async checkInitialState() {
+        const { data: game } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(1).single();
+        
+        const { data: history } = await this.db.from('games').select('winner, created_at').eq('status', 'finished').limit(5);
+        if(history) {
+            const tickerHtml = history.map(h => {
+                const date = new Date(h.created_at).toLocaleDateString();
+                return `<span class="history-item">🏆 PREVIOUS WINNER (${date}): ${h.winner.toUpperCase()}</span>`;
+            }).join(' • ');
+            document.getElementById('ticker-target').innerHTML = tickerHtml + tickerHtml; 
+        }
+
+        if (!game || (game.status !== 'active' && !this.isRecent(game.created_at))) {
+            document.getElementById('waiting-screen').classList.remove('hidden');
+            this.listenForNewGames();
+        } else {
+            this.startGameView(game);
+        }
+    },
+
+    isRecent(date) { return (new Date().getTime() - new Date(date).getTime()) < 3600000; },
+
+    listenForNewGames() {
+        this.db.channel('lobby').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'games' }, () => {
+            location.reload();
+        }).subscribe();
+    },
+
+    async startGameView(game) {
+        this.currentGame = game;
+        document.getElementById('waiting-screen').classList.add('hidden');
+        if (game.status === 'finished') {
+            this.showWinner(game.winner);
+        } else {
+            // DYNAMIC START ANIMATION
+            setTimeout(() => this.queueBroadcast('BREAKING NEWS', 'MATCH STARTING NOW', 'red', 5000), 1000);
+        }
+        const { data: rounds } = await this.db.from('rounds').select('*').eq('game_id', game.id).order('round_number', { ascending: true });
+        this.renderTable(rounds);
+        this.setupSubscription(game.id);
+    },
+
+    setupSubscription(gameId) {
+        this.db.channel(`tv-live-${gameId}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` }, async (payload) => {
+                this.queueBroadcast('ROUND SCORED', `ROUND ${payload.new.round_number}`, 'blue', 3000);
+                const { data: updatedRounds } = await this.db.from('rounds').select('*').eq('game_id', gameId).order('round_number', { ascending: true });
+                setTimeout(() => this.renderTable(updatedRounds), 600);
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` }, payload => {
+                if (payload.new.status === 'finished') this.showWinner(payload.new.winner);
+            })
+            .subscribe();
+    },
+
+    queueBroadcast(tag, text, theme, duration = 2500) {
+        this.alertQueue.push({ tag, text, theme, duration });
+        if (!this.isAlertPlaying) this.playNextBroadcast();
+    },
+
+    playNextBroadcast() {
+        if (this.alertQueue.length === 0) { this.isAlertPlaying = false; return; }
+        this.isAlertPlaying = true;
+        const currentAlert = this.alertQueue.shift();
+        const alertEl = document.getElementById('fullscreen-alert');
+        
+        document.getElementById('alert-tag').className = `alert-tag ${currentAlert.theme}`;
+        document.getElementById('alert-tag').innerText = currentAlert.tag;
+        document.getElementById('alert-text').innerText = currentAlert.text;
+        
+        alertEl.classList.remove('exit');
+        alertEl.classList.add('active');
+
+        setTimeout(() => {
+            alertEl.classList.add('exit');
+            setTimeout(() => {
+                alertEl.classList.remove('active', 'exit');
+                setTimeout(() => this.playNextBroadcast(), 500);
+            }, 600);
+        }, currentAlert.duration);
+    },
+
+    renderTable(rounds) {
+        let totals = {}; this.players.forEach(p => totals[p] = 0);
+        const body = document.getElementById('table-body');
+        let newHtml = '';
+        rounds.forEach((r) => {
+            if (r.scores.type !== 'global_star') {
+                let rowData = `<td>${r.round_number}</td><td style="color:var(--accent)">${r.scores.dealer}</td>`;
+                this.players.forEach(p => {
+                    const pts = r.scores.points[p] || 0; totals[p] += pts;
+                    rowData += `<td style="color:${pts < 0 ? 'var(--negative)' : '#fff'}">${pts}</td>`;
+                });
+                newHtml += `<tr>${rowData}</tr>`;
+            }
+        });
+        body.innerHTML = newHtml;
+        document.getElementById('table-header').innerHTML = '<th>#</th><th>Dealer</th>' + this.players.map(p => `<th>${p}</th>`).join('');
+        document.getElementById('table-totals').innerHTML = `<tr><td colspan="2">TOTAL</td>` + this.players.map(p => `<td>${totals[p]}</td>`).join('') + `</tr>`;
+        const box = document.getElementById('scroll-box');
+        box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+    },
+
+    showWinner(name) {
+        // HYPED WINNER SEQUENCE
+        this.queueBroadcast('BREAKING NEWS', `WINNER DECLARED: ${name.toUpperCase()}`, 'gold', 5000);
+        
+        setTimeout(() => {
+            document.getElementById('winner-name').innerText = name;
+            document.getElementById('winner-overlay').classList.add('active');
+        }, 5500);
+    }
+};
+
+watchApp.init();
+</script>
+</body>
+</html>
