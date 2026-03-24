@@ -21,7 +21,6 @@
         th, td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; font-size: 0.9em; }
         #loader { text-align: center; margin: 10px; color: var(--accent-color); font-weight: bold; }
         
-        /* New Rule Style */
         .rule-badge { 
             margin-top: 15px; 
             padding: 15px; 
@@ -34,6 +33,20 @@
             align-items: center;
             gap: 10px;
         }
+
+        /* Winner Popup Styles */
+        #winner-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: flex; justify-content: center;
+            align-items: center; z-index: 1000; flex-direction: column;
+            text-align: center; animation: fadeIn 0.5s;
+        }
+        .winner-card {
+            background: white; color: var(--text-dark); padding: 40px;
+            border-radius: 20px; border: 4px solid var(--accent-color);
+            box-shadow: 0 0 30px var(--accent-color);
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -74,13 +87,22 @@
     </div>
 </div>
 
+<div id="winner-overlay" class="hidden">
+    <div class="winner-card">
+        <h1 style="font-size: 3em;">🏆</h1>
+        <h2 id="winner-name" style="border:none; margin: 10px 0;">Player Name</h2>
+        <p style="color: #666; margin-bottom: 20px;">Has won the game!</p>
+        <button onclick="document.getElementById('winner-overlay').classList.add('hidden')">Close</button>
+    </div>
+</div>
+
 <script>
 const watchApp = {
     supabaseUrl: 'https://kkgaceamcqqfacygtvtr.supabase.co',
     supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
     db: null,
     players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
-    currentChannel: null, // Holds the real-time subscription
+    currentChannel: null,
 
     async init() {
         this.db = supabase.createClient(this.supabaseUrl, this.supabaseKey);
@@ -94,7 +116,7 @@ const watchApp = {
         const { data } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(20);
         document.getElementById('games-list').innerHTML = data.map(g => `
             <div style="background:#fff; border: 1px solid #ddd; padding: 10px; margin-bottom: 8px; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
-                <div><span style="font-size:0.7em;">${new Date(g.created_at).toLocaleDateString()}</span><br><strong>${g.status === 'active' ? '🔴 Live' : 'Winner: ' + g.winner}</strong></div>
+                <div><span style="font-size:0.7em;">${new Date(g.created_at).toLocaleDateString()}</span><br><strong>${g.status === 'active' ? '🔴 Live' : 'Winner: ' + (g.winner || 'N/A')}</strong></div>
                 <button class="outline" onclick="watchApp.viewGame('${g.id}')">View Details</button>
             </div>
         `).join('');
@@ -103,49 +125,56 @@ const watchApp = {
 
     async viewGame(id) {
         this.setLoading(true);
-        
-        // 1. Fetch Game Metadata (for the end rule)
         const { data: game } = await this.db.from('games').select('*').eq('id', id).single();
-        document.getElementById('rule-text').innerText = game.end_rule || "No specific rule set for this game.";
         
-        // 2. Fetch Initial Rounds
+        this.updateUIForGame(game);
+
         const { data: rounds } = await this.db.from('rounds').select('*').eq('game_id', id).order('round_number', { ascending: true });
         
         document.getElementById('watch-screen').classList.add('hidden');
         document.getElementById('view-screen').classList.remove('hidden');
         
         this.renderTable(rounds);
-
-        // 3. Setup Real-time if game is active
-        if (game.status === 'active') {
-            this.setupSubscription(id);
-        }
-
+        this.setupSubscription(id);
         this.setLoading(false);
     },
 
+    updateUIForGame(game) {
+        document.getElementById('rule-text').innerText = game.end_rule || "No specific rule set.";
+        if (game.status === 'finished' && game.winner) {
+            this.showWinner(game.winner);
+        }
+    },
+
+    showWinner(name) {
+        document.getElementById('winner-name').innerText = name;
+        document.getElementById('winner-overlay').classList.remove('hidden');
+    },
+
     setupSubscription(gameId) {
-        // Clean up any existing subscription first
         if (this.currentChannel) this.db.removeChannel(this.currentChannel);
 
-        this.currentChannel = this.db.channel(`game-${gameId}`)
+        this.currentChannel = this.db.channel(`watch-${gameId}`)
+            // Listen for new rounds
             .on('postgres_changes', { 
-                event: 'INSERT', 
-                schema: 'public', 
-                table: 'rounds', 
-                filter: `game_id=eq.${gameId}` 
-            }, async (payload) => {
-                console.log('New round detected!', payload);
-                // Refresh data when a new round is inserted
+                event: 'INSERT', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` 
+            }, async () => {
                 const { data: updatedRounds } = await this.db.from('rounds').select('*').eq('game_id', gameId).order('round_number', { ascending: true });
                 this.renderTable(updatedRounds);
+            })
+            // Listen for game status updates (End Rules & Winners)
+            .on('postgres_changes', { 
+                event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` 
+            }, (payload) => {
+                console.log('Game updated:', payload.new);
+                this.updateUIForGame(payload.new);
             })
             .subscribe();
     },
 
     stopWatching() {
         if (this.currentChannel) this.db.removeChannel(this.currentChannel);
-        location.reload(); // Simplest way to reset state
+        location.reload();
     },
 
     renderTable(rounds) {
