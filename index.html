@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tarok Tracker Pro: Realtime Sync</title>
+    <title>Tarok Tracker Pro: Star Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -18,7 +18,7 @@
             --border-radius: 12px;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
 
         body {
             background: linear-gradient(135deg, var(--bg-dark), var(--bg-table));
@@ -32,6 +32,7 @@
 
         .container { width: 100%; max-width: 800px; position: relative; }
 
+        /* Hero restored from live */
         .hero { text-align: center; margin-bottom: 30px; animation: fadeIn 1s ease-in; }
         .hero svg { filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.5)); margin-bottom: 10px; }
         .hero h1 { font-size: 2.5em; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-color); text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
@@ -48,22 +49,37 @@
             border: 1px solid rgba(0,0,0,0.1);
         }
 
+        /* Decorative accents restored */
         .card-panel::before { content: '♠'; position: absolute; font-size: 40px; opacity: 0.05; top: 10px; left: 15px; pointer-events: none; }
         .card-panel::after { content: '♥'; position: absolute; font-size: 40px; opacity: 0.05; bottom: 10px; right: 15px; color: var(--primary-color); pointer-events: none; }
 
         h2, h3 { margin-bottom: 15px; color: var(--secondary-color); border-bottom: 2px solid #eee; padding-bottom: 5px;}
 
         button {
-            background-color: var(--secondary-color); color: var(--text-light); border: none;
-            padding: 12 -px 18px; border-radius: 8px; cursor: pointer; font-weight: bold;
-            transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin: 5px;
+            background-color: var(--secondary-color);
+            color: var(--text-light);
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 5px;
         }
         button:hover { opacity: 0.9; transform: translateY(-2px); }
         button.primary { background-color: var(--primary-color); }
         button.accent { background-color: var(--accent-color); color: var(--text-dark); }
         button.outline { background: transparent; border: 2px solid var(--secondary-color); color: var(--secondary-color); }
 
-        input, select { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ccc; }
+        input, select {
+            width: 100%; padding: 12px; margin-bottom: 10px;
+            border-radius: 8px; border: 1px solid #ccc;
+            background-color: #fff; color: var(--text-dark);
+        }
 
         .hidden { display: none !important; }
         .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
@@ -72,15 +88,10 @@
         .table-container { overflow-x: auto; background: white; border-radius: 8px; padding: 10px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; }
-        th { background-color: #f8f9fa; color: var(--secondary-color); font-weight: bold; }
+        th { background-color: #f8f9fa; color: var(--secondary-color); }
         
-        .star-badge { color: #d35400; font-weight: bold; font-size: 0.85em; display: block; }
-        .dealer-col { font-weight: bold; color: var(--primary-color); }
-
-        #endgame-status {
-            background: #e3f2fd; border: 2px dashed #2196f3; padding: 15px;
-            text-align: center; font-weight: bold; color: #0d47a1; margin-top: -10px;
-        }
+        .star-badge { color: #d35400; font-weight: bold; font-size: 0.9em; display: block; }
+        .spent-star-text { font-size: 0.7em; color: #aaa; text-transform: uppercase; }
 
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -89,7 +100,8 @@
         }
         .modal-content {
             background: var(--surface-color); color: var(--text-dark);
-            padding: 30px; border-radius: var(--border-radius); text-align: center; width: 450px;
+            padding: 30px; border-radius: var(--border-radius); 
+            text-align: center; max-width: 90%; width: 450px;
         }
 
         #loader { text-align: center; margin: 10px; color: var(--accent-color); font-weight: bold; }
@@ -101,13 +113,19 @@
 <div class="container">
     <div class="hero">
         <svg viewBox="0 0 120 120" width="80" height="80">
-            <g transform="rotate(-15 40 60)"><rect x="20" y="20" width="50" height="75" rx="4" fill="white" stroke="#222" stroke-width="2"/><text x="38" y="65" fill="#1a1a1a" font-size="30">♠</text></g>
-            <g transform="rotate(15 80 60)"><rect x="50" y="20" width="50" height="75" rx="4" fill="white" stroke="#222" stroke-width="2"/><text x="68" y="65" fill="#d32f2f" font-size="30">♥</text></g>
+            <g transform="rotate(-15 40 60)">
+                <rect x="20" y="20" width="50" height="75" rx="4" fill="white" stroke="#222" stroke-width="2"/>
+                <text x="38" y="65" fill="#1a1a1a" font-size="30">♠</text>
+            </g>
+            <g transform="rotate(15 80 60)">
+                <rect x="50" y="20" width="50" height="75" rx="4" fill="white" stroke="#222" stroke-width="2"/>
+                <text x="68" y="65" fill="#d32f2f" font-size="30">♥</text>
+            </g>
         </svg>
         <h1>Tarok Tracker</h1>
     </div>
 
-    <div id="loader" class="hidden">♠ Syncing with Database...</div>
+    <div id="loader" class="hidden">Syncing Deck...</div>
 
     <div id="home-screen" class="card-panel">
         <div class="grid-2">
@@ -117,18 +135,18 @@
     </div>
 
     <div id="setup-screen" class="card-panel hidden">
-        <h2>Start New Game</h2>
+        <h2>New Game</h2>
         <label>Starting Dealer:</label>
         <select id="starting-dealer"></select>
         <div class="flex-row">
-            <button class="primary" onclick="app.startNewGame()">Start Game</button>
+            <button class="primary" onclick="app.startNewGame()">Deal Cards</button>
             <button class="outline" onclick="app.showHome()">Cancel</button>
         </div>
     </div>
 
     <div id="watch-screen" class="card-panel hidden">
         <div class="flex-row" style="justify-content: space-between;">
-            <h2>Active Tables</h2>
+            <h2>Game History</h2>
             <button class="outline" onclick="app.showHome()">Back</button>
         </div>
         <div id="games-list"></div>
@@ -142,41 +160,65 @@
         </div>
 
         <div id="add-round-module" class="card-panel hidden" style="border-left: 5px solid var(--accent-color);">
-            <h3>Record Score</h3>
+            <h3>Add Score</h3>
+            <div class="flex-row" style="background: #eee; padding: 10px; border-radius: 8px;">
+                <label><input type="radio" name="input-mode" value="team" checked onchange="app.toggleInputMode()"> Team</label>
+                <label style="margin-left: 15px;"><input type="radio" name="input-mode" value="manual" onchange="app.toggleInputMode()"> Manual</label>
+            </div>
+
             <div id="team-inputs" class="grid-2">
-                <div><label>Active Player:</label><select id="team-p1" onchange="app.checkStarAvailability()"></select></div>
+                <div><label>Player:</label><select id="team-p1" onchange="app.checkStarAvailability()"></select></div>
                 <div><label>Partner:</label><select id="team-p2"></select></div>
                 <div style="grid-column: span 2;">
-                    <label>Base Points:</label><input type="number" id="team-points" placeholder="Points won/lost">
+                    <label>Points:</label><input type="number" id="team-points" placeholder="Base points">
                     <p id="team-star-notice" style="font-size: 0.8em; color: var(--primary-color); font-weight: bold;"></p>
                 </div>
             </div>
-            <button class="primary" onclick="app.submitRound()" style="width: 100%; margin-top: 15px;">Submit Round</button>
+
+            <div id="manual-inputs" class="hidden">
+                <div class="grid-2" id="manual-grid"></div>
+                <div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px;">
+                    <label>Spending a Star?</label>
+                    <select id="manual-star-spender"><option value="none">-- No one --</option></select>
+                </div>
+            </div>
+
+            <button class="primary" onclick="app.submitRound()" style="width: 100%; margin-top: 15px;">Save Round</button>
+            <button class="outline" onclick="app.undoLastRound()" style="width: 100%;">Undo Last</button>
         </div>
 
         <div id="end-game-module" class="card-panel hidden" style="border-left: 5px solid var(--primary-color);">
-            <h3>Game Options</h3>
+            <h3>End Game Options</h3>
             <div style="background: #fff3f3; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-                <label>Set Skis Target (Player):</label>
+                <label>Set Skis Target:</label>
                 <select id="live-skis-player"></select>
-                <button class="outline" onclick="app.setLiveSkis()" style="width: 100%;">Commit Target</button>
+                <button class="outline" onclick="app.setLiveSkis()" style="width: 100%;">Set Skis</button>
             </div>
-            <button class="primary" onclick="app.endGameManual()" style="width: 100%;">🛑 Force End Game</button>
+            <button class="primary" onclick="app.endGameManual()" style="width: 100%;">🛑 Finalize & Penalty Apply</button>
         </div>
 
         <div class="card-panel table-container">
             <div class="flex-row" style="justify-content: space-between;">
-                <h3 style="border:none; margin:0;">Live Scoreboard</h3>
+                <h3 style="border:none;">Scoreboard</h3>
                 <button id="exit-watch-btn" class="outline hidden" onclick="app.showWatch()">Exit Watch</button>
             </div>
-            <table>
+            <table id="score-table">
                 <thead><tr id="table-header"></tr></thead>
                 <tbody id="table-body"></tbody>
                 <tfoot><tr id="table-totals" style="background: #f1f8e9; font-weight: bold;"></tr></tfoot>
             </table>
         </div>
+    </div>
+</div>
 
-        <div id="endgame-status" class="card-panel">Initializing...</div>
+<div id="active-game-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2>Live Game Detected</h2>
+        <p>Resume the current session or start a new one?</p>
+        <div class="flex-row" style="justify-content: center; margin-top: 20px;">
+            <button class="primary" onclick="app.resumeGame(app.pendingActiveGameId, false)">Resume</button>
+            <button class="outline" onclick="app.abandonActiveAndStartNew()">Start New</button>
+        </div>
     </div>
 </div>
 
@@ -184,8 +226,9 @@
     <div class="modal-content" id="winner-box">
         <h1 id="winner-title">Winner!</h1>
         <p id="winner-name" style="font-size: 2.2em; font-weight: bold; margin: 10px 0;"></p>
-        <p id="winner-score" style="font-size: 1.2em;"></p>
-        <button class="primary" onclick="app.closeModalsAndHome()" style="margin-top: 20px; width: 100%;">Close</button>
+        <div id="penalty-breakdown" style="font-size: 0.85em; margin-bottom: 15px; color: #555; text-align: left; background: #eee; padding: 10px; border-radius: 5px;"></div>
+        <p id="winner-score" style="font-size: 1.2em; font-weight: bold;"></p>
+        <button class="primary" onclick="app.closeModalsAndHome()" style="margin-top: 20px; width: 100%;">Return Home</button>
     </div>
 </div>
 
@@ -194,13 +237,13 @@ const app = {
     supabaseUrl: 'https://kkgaceamcqqfacygtvtr.supabase.co',
     supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
     db: null,
-    realtimeChannel: null,
 
     players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
     currentGameId: null,
     currentDealerIndex: 0,
     rounds: [],
     stars: { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 },
+    currentTotals: {},
     skisTarget: null,
     isReadOnly: false,
 
@@ -210,199 +253,220 @@ const app = {
     },
 
     populateDropdowns() {
-        ['team-p1', 'team-p2', 'starting-dealer', 'live-skis-player'].forEach(id => {
-            const el = document.getElementById(id);
-            if(el) {
-                el.innerHTML = '';
-                this.players.forEach(p => el.innerHTML += `<option value="${p}">${p}</option>`);
-            }
+        const selects = ['team-p1', 'team-p2', 'starting-dealer', 'live-skis-player', 'manual-star-spender'];
+        selects.forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = (id === 'manual-star-spender') ? '<option value="none">-- No one --</option>' : ''; });
+        const manualGrid = document.getElementById('manual-grid');
+        manualGrid.innerHTML = '';
+
+        this.players.forEach(p => {
+            const opt = `<option value="${p}">${p}</option>`;
+            selects.forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML += opt; });
+            manualGrid.innerHTML += `<div><label>${p}:</label><input type="number" id="manual-${p}" value="0"></div>`;
         });
-    },
-
-    // --- REALTIME SYNC ENGINE ---
-    async subscribeToGame(gameId) {
-        if (this.realtimeChannel) this.db.removeChannel(this.realtimeChannel);
-
-        this.realtimeChannel = this.db.channel(`game-${gameId}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` }, (payload) => {
-                if (payload.eventType === 'INSERT') {
-                    // Prevent duplicate if already added locally
-                    if (!this.rounds.find(r => r.id === payload.new.id)) {
-                        this.rounds.push(payload.new);
-                        this.recalculateAndRender();
-                    }
-                } else if (payload.eventType === 'DELETE') {
-                    this.refreshFullData(gameId);
-                }
-            })
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` }, (payload) => {
-                const updatedGame = payload.new;
-                this.skisTarget = updatedGame.skis_target;
-                this.recalculateAndRender();
-                if (updatedGame.status === 'finished') {
-                    this.showFinalWinnerPopup(updatedGame.winner);
-                }
-            })
-            .subscribe();
-    },
-
-    async refreshFullData(gameId) {
-        const { data: gameData } = await this.db.from('games').select('*').eq('id', gameId).single();
-        const { data: roundData } = await this.db.from('rounds').select('*').eq('game_id', gameId).order('round_number', { ascending: true });
-        
-        this.skisTarget = gameData.skis_target;
-        this.rounds = roundData || [];
-        this.recalculateAndRender();
-        if (gameData.status === 'finished') this.showFinalWinnerPopup(gameData.winner);
+        document.getElementById('team-p2').selectedIndex = 1;
     },
 
     setLoading(active) { document.getElementById('loader').classList.toggle('hidden', !active); },
-    hideAllScreens() { ['home-screen', 'setup-screen', 'watch-screen', 'game-screen'].forEach(id => document.getElementById(id).classList.add('hidden')); },
+    hideAllScreens() { ['home-screen', 'setup-screen', 'watch-screen', 'game-screen'].forEach(id => document.getElementById(id).classList.add('hidden')); this.closeModals(); },
     showHome() { this.hideAllScreens(); document.getElementById('home-screen').classList.remove('hidden'); },
-    showWatch() { this.hideAllScreens(); document.getElementById('watch-screen').classList.remove('hidden'); this.loadActiveGames(); },
+    showSetup() { this.hideAllScreens(); document.getElementById('setup-screen').classList.remove('hidden'); },
+    closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); },
+    closeModalsAndHome() { this.closeModals(); this.showHome(); },
     toggleModule(id) { document.getElementById(id).classList.toggle('hidden'); },
-    closeModalsAndHome() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); this.showHome(); },
+    toggleInputMode() {
+        const isTeam = document.querySelector('input[name="input-mode"]:checked').value === 'team';
+        document.getElementById('team-inputs').classList.toggle('hidden', !isTeam);
+        document.getElementById('manual-inputs').classList.toggle('hidden', isTeam);
+    },
 
     async handleEnterPointsClick() {
+        this.setLoading(true);
         const { data } = await this.db.from('games').select('id').eq('status', 'active').limit(1);
-        if (data && data.length > 0) this.resumeGame(data[0].id, false);
-        else { this.hideAllScreens(); document.getElementById('setup-screen').classList.remove('hidden'); }
+        this.setLoading(false);
+        if (data && data.length > 0) {
+            this.pendingActiveGameId = data[0].id;
+            document.getElementById('active-game-modal').classList.remove('hidden');
+        } else { this.showSetup(); }
+    },
+
+    async abandonActiveAndStartNew() {
+        await this.db.from('games').update({ status: 'finished' }).eq('id', this.pendingActiveGameId);
+        this.closeModals();
+        this.showSetup();
     },
 
     async startNewGame() {
         this.setLoading(true);
+        this.resetState();
         this.currentDealerIndex = this.players.indexOf(document.getElementById('starting-dealer').value);
-        const { data } = await this.db.from('games').insert([{ status: 'active' }]).select('id').single();
-        this.currentGameId = data.id;
-        this.rounds = [];
-        this.subscribeToGame(data.id);
-        this.setupUI(false);
-        this.setLoading(false);
+        try {
+            const { data, error } = await this.db.from('games').insert([{ status: 'active' }]).select('id').single();
+            if (error) throw error;
+            this.currentGameId = data.id;
+            this.setupUI(false);
+        } catch (e) { alert(e.message); } finally { this.setLoading(false); }
     },
 
     async resumeGame(id, readOnly) {
         this.setLoading(true);
+        this.closeModals();
+        this.resetState();
         this.currentGameId = id;
-        this.isReadOnly = readOnly;
-        await this.refreshFullData(id);
-        this.subscribeToGame(id);
-        this.setupUI(readOnly);
-        this.setLoading(false);
+        try {
+            const { data } = await this.db.from('rounds').select('*').eq('game_id', id).order('round_number', { ascending: true });
+            this.rounds = data || [];
+            this.recalculateStateFromRounds();
+            this.setupUI(readOnly);
+        } catch (e) { alert(e.message); } finally { this.setLoading(false); }
+    },
+
+    resetState() { this.rounds = []; this.stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 }; this.skisTarget = null; },
+
+    recalculateStateFromRounds() {
+        this.stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+        this.rounds.forEach(r => {
+            if (r.scores.type === 'global_star') {
+                this.players.forEach(p => this.stars[p]++);
+            } else if (r.scores.star_spent_by && r.scores.star_spent_by !== 'none') {
+                this.stars[r.scores.star_spent_by]--;
+            }
+        });
+        const lastRound = this.rounds.filter(r => r.scores.type !== 'global_star').pop();
+        if (lastRound) this.currentDealerIndex = (this.players.indexOf(lastRound.scores.dealer) + 1) % 4;
     },
 
     setupUI(readOnly) {
+        this.isReadOnly = readOnly;
         this.hideAllScreens();
         document.getElementById('game-screen').classList.remove('hidden');
         document.getElementById('game-controls').classList.toggle('hidden', readOnly);
         document.getElementById('exit-watch-btn').classList.toggle('hidden', !readOnly);
-    },
-
-    async submitRound() {
-        const p1 = document.getElementById('team-p1').value;
-        const p2 = document.getElementById('team-p2').value;
-        let pts = parseInt(document.getElementById('team-points').value) || 0;
-        
-        let starSpender = 'none';
-        if (this.stars[p1] > 0) { pts *= 2; starSpender = p1; }
-
-        const roundScores = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
-        roundScores[p1] += pts;
-        if (p1 !== p2) roundScores[p2] += pts;
-
-        const roundData = { 
-            game_id: this.currentGameId, 
-            round_number: this.rounds.length + 1, 
-            scores: { type: 'points', dealer: this.players[this.currentDealerIndex], points: roundScores, star_spent_by: starSpender } 
-        };
-        
-        await this.db.from('rounds').insert([roundData]);
-        document.getElementById('add-round-module').classList.add('hidden');
-    },
-
-    async earnStarForAll() {
-        const roundData = { game_id: this.currentGameId, round_number: this.rounds.length + 1, scores: { type: 'global_star', dealer: this.players[this.currentDealerIndex] } };
-        await this.db.from('rounds').insert([roundData]);
-    },
-
-    async setLiveSkis() {
-        const target = document.getElementById('live-skis-player').value;
-        await this.db.from('games').update({ skis_target: target }).eq('id', this.currentGameId);
-        this.toggleModule('end-game-module');
-    },
-
-    recalculateAndRender() {
-        this.stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
-        const totals = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
-        
-        const header = document.getElementById('table-header');
-        const body = document.getElementById('table-body');
-        body.innerHTML = '';
-
-        this.rounds.forEach(r => {
-            if (r.scores.type === 'global_star') {
-                this.players.forEach(p => this.stars[p]++);
-                body.innerHTML += `<tr><td>${r.round_number}</td><td colspan="5" style="background:#fffde7; font-weight:bold;">🌟 GLOBAL STAR</td></tr>`;
-            } else {
-                if (r.scores.star_spent_by !== 'none') this.stars[r.scores.star_spent_by]--;
-                let row = `<td>${r.round_number}</td><td class="dealer-col">${r.scores.dealer}</td>`;
-                this.players.forEach(p => {
-                    const pts = r.scores.points[p] || 0;
-                    totals[p] += pts;
-                    row += `<td>${pts}${r.scores.star_spent_by === p ? '<br><small>⭐</small>' : ''}</td>`;
-                });
-                body.innerHTML += `<tr>${row}</tr>`;
-            }
-        });
-
-        // Update Header with Star counts
-        header.innerHTML = '<th>#</th><th>Dealer</th>' + this.players.map(p => `<th>${p}<br><span class="star-badge">⭐ ${this.stars[p]}</span></th>`).join('');
-        document.getElementById('table-totals').innerHTML = `<td colspan="2">TOTAL</td>` + this.players.map(p => `<td>${totals[p]}</td>`).join('');
-        
-        // Dealer Logic
-        const lastPointsRound = this.rounds.filter(r => r.scores.type !== 'global_star').pop();
-        if (lastPointsRound) this.currentDealerIndex = (this.players.indexOf(lastPointsRound.scores.dealer) + 1) % 4;
-        
-        // Status Update
-        const statusBox = document.getElementById('endgame-status');
-        if (this.skisTarget) {
-            statusBox.innerHTML = `⛷️ Current Goal: SKIS (Game ends on ${this.skisTarget}'s deal)`;
-            if (!this.isReadOnly && this.players[this.currentDealerIndex] === this.skisTarget) this.endGameManual();
-        } else {
-            statusBox.innerHTML = `🎯 Current Goal: Manual Points Pursuit`;
-        }
-        
-        this.currentTotals = totals;
+        this.renderTable();
         this.checkStarAvailability();
-    },
-
-    async endGameManual() {
-        let winner = this.players[0], max = -9999;
-        this.players.forEach(p => {
-            const final = this.currentTotals[p] - (this.stars[p] > 0 ? (20 * Math.pow(2, this.stars[p] - 1)) : 0);
-            if (final > max) { max = final; winner = p; }
-        });
-        await this.db.from('games').update({ status: 'finished', winner: winner }).eq('id', this.currentGameId);
-    },
-
-    showFinalWinnerPopup(winnerName) {
-        document.getElementById('winner-name').innerText = winnerName;
-        document.getElementById('winner-score').innerText = `Final Score: ${this.currentTotals[winnerName]}`;
-        document.getElementById('winner-modal').classList.remove('hidden');
-    },
-
-    async loadActiveGames() {
-        const { data } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(5);
-        document.getElementById('games-list').innerHTML = data.map(g => `
-            <div style="background:#fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
-                <div><strong>${g.status === 'active' ? '🟢 Active Game' : '🏁 Finished'}</strong><br><small>${new Date(g.created_at).toLocaleTimeString()}</small></div>
-                <button class="primary" onclick="app.resumeGame('${g.id}', true)">Watch</button>
-            </div>
-        `).join('');
     },
 
     checkStarAvailability() {
         const p1 = document.getElementById('team-p1').value;
-        document.getElementById('team-star-notice').innerText = this.stars[p1] > 0 ? `⭐ Automatic Double (Star available)` : "Standard Points";
+        const hasStar = this.stars[p1] > 0;
+        document.getElementById('team-star-notice').innerText = hasStar ? `⭐ Spending 1 star (Available: ${this.stars[p1]}) - Doubling!` : "No stars available.";
+    },
+
+    async earnStarForAll() {
+        if (!confirm("Add 1 star to everyone?")) return;
+        this.setLoading(true);
+        const roundData = { game_id: this.currentGameId, round_number: this.rounds.length + 1, scores: { type: 'global_star', dealer: this.players[this.currentDealerIndex] } };
+        const { data, error } = await this.db.from('rounds').insert([roundData]).select('id').single();
+        if (!error) {
+            this.rounds.push({ ...roundData, id: data.id });
+            this.players.forEach(p => this.stars[p]++);
+            this.renderTable();
+        }
+        this.setLoading(false);
+    },
+
+    async submitRound() {
+        this.setLoading(true);
+        const isTeam = document.querySelector('input[name="input-mode"]:checked').value === 'team';
+        let roundScores = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+        let starSpender = 'none';
+
+        if (isTeam) {
+            const p1 = document.getElementById('team-p1').value;
+            const p2 = document.getElementById('team-p2').value;
+            let pts = parseInt(document.getElementById('team-points').value) || 0;
+            if (this.stars[p1] > 0) { pts *= 2; starSpender = p1; }
+            roundScores[p1] += pts;
+            if (p1 !== p2) roundScores[p2] += pts;
+        } else {
+            starSpender = document.getElementById('manual-star-spender').value;
+            const mult = (starSpender !== 'none' && this.stars[starSpender] > 0) ? 2 : 1;
+            this.players.forEach(p => roundScores[p] = (parseInt(document.getElementById(`manual-${p}`).value) || 0) * mult);
+        }
+
+        const roundData = { game_id: this.currentGameId, round_number: this.rounds.length + 1, scores: { type: 'points', dealer: this.players[this.currentDealerIndex], points: roundScores, star_spent_by: starSpender } };
+        const { data, error } = await this.db.from('rounds').insert([roundData]).select('id').single();
+        if (!error) {
+            this.rounds.push({ ...roundData, id: data.id });
+            if (starSpender !== 'none') this.stars[starSpender]--;
+            this.currentDealerIndex = (this.currentDealerIndex + 1) % 4;
+            this.renderTable();
+            this.toggleModule('add-round-module');
+            this.checkEndConditions();
+        }
+        this.setLoading(false);
+    },
+
+    async undoLastRound() {
+        if (this.rounds.length === 0) return;
+        this.setLoading(true);
+        const last = this.rounds.pop();
+        await this.db.from('rounds').delete().eq('id', last.id);
+        this.recalculateStateFromRounds();
+        this.renderTable();
+        this.setLoading(false);
+    },
+
+    renderTable() {
+        const header = document.getElementById('table-header');
+        header.innerHTML = '<th>#</th><th>Dealer</th>' + this.players.map(p => `<th>${p}<br><span class="star-badge">⭐ ${this.stars[p]}</span></th>`).join('');
+        const body = document.getElementById('table-body');
+        body.innerHTML = '';
+        const totals = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+
+        this.rounds.forEach(r => {
+            const tr = document.createElement('tr');
+            if (r.scores.type === 'global_star') {
+                tr.innerHTML = `<td>${r.round_number}</td><td colspan="5" style="background:#fffde7; font-size: 0.8em;">🌟 Global Star Granted</td>`;
+            } else {
+                let html = `<td>${r.round_number}</td><td style="color:var(--primary-color);font-weight:bold">${r.scores.dealer}</td>`;
+                this.players.forEach(p => {
+                    const pts = r.scores.points[p] || 0; totals[p] += pts;
+                    const spnt = (r.scores.star_spent_by === p) ? '<br><span class="spent-star-text">Used ⭐</span>' : '';
+                    html += `<td>${pts}${spnt}</td>`;
+                });
+                tr.innerHTML = html;
+            }
+            body.appendChild(tr);
+        });
+        if (!this.isReadOnly) body.innerHTML += `<tr><td>Next</td><td style="color:var(--primary-color)">👉 ${this.players[this.currentDealerIndex]}</td><td colspan="4"></td></tr>`;
+        document.getElementById('table-totals').innerHTML = `<td colspan="2">TOTAL</td>` + this.players.map(p => `<td>${totals[p]}</td>`).join('');
+        this.currentTotals = totals;
+    },
+
+    setLiveSkis() { this.skisTarget = document.getElementById('live-skis-player').value; alert(`Game ends when ${this.skisTarget} deals.`); this.checkEndConditions(); },
+
+    checkEndConditions() { if (this.skisTarget && this.rounds.length > 0 && this.players[this.currentDealerIndex] === this.skisTarget) { this.endGameManual(); } },
+
+    async endGameManual() {
+        this.setLoading(true);
+        let winner = this.players[0], max = -9999, breakHtml = '<strong>Penalties:</strong><br>';
+        this.players.forEach(p => {
+            const count = this.stars[p];
+            const penalty = count > 0 ? (20 * Math.pow(2, count - 1)) : 0;
+            const final = this.currentTotals[p] - penalty;
+            breakHtml += `${p}: -${penalty} pts (${count} stars left)<br>`;
+            if (final > max) { max = final; winner = p; }
+        });
+        await this.db.from('games').update({ status: 'finished', winner: winner }).eq('id', this.currentGameId);
+        document.getElementById('winner-name').innerText = winner;
+        document.getElementById('winner-score').innerText = `Final Score: ${max}`;
+        document.getElementById('penalty-breakdown').innerHTML = breakHtml;
+        const box = document.getElementById('winner-box');
+        if (winner === 'Dimi' || winner === 'Mile') { box.style.border = '5px solid var(--accent-color)'; document.getElementById('winner-title').innerText = '🏆 BEST PRO PLAYER 🏆'; }
+        document.getElementById('winner-modal').classList.remove('hidden');
+        this.setLoading(false);
+    },
+
+    async showWatch() {
+        this.setLoading(true); this.hideAllScreens(); document.getElementById('watch-screen').classList.remove('hidden');
+        const { data } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(10);
+        document.getElementById('games-list').innerHTML = data.map(g => `
+            <div class="game-list-item" style="background:#fff; border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 8px; display:flex; justify-content:space-between;">
+                <div><span style="font-size:0.7em;">${new Date(g.created_at).toLocaleDateString()}</span><br><strong>${g.status === 'active' ? '🔴 Live' : g.winner}</strong></div>
+                <button class="outline" onclick="app.resumeGame('${g.id}', true)">View</button>
+            </div>
+        `).join('');
+        this.setLoading(false);
     }
 };
 app.init();
