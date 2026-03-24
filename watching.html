@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarok Tracker: Watch Mode</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* REUSE THE SAME CSS FROM YOUR MAIN FILE FOR CONSISTENCY */
+        :root { --bg-table: #1c3d2f; --bg-dark: #0f2027; --surface-color: #fdfbf7; --primary-color: #d32f2f; --secondary-color: #1a1a1a; --accent-color: #ffd700; --text-dark: #212121; --text-light: #ffffff; --border-radius: 12px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background: linear-gradient(135deg, var(--bg-dark), var(--bg-table)); color: var(--text-light); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { width: 100%; max-width: 800px; }
+        .card-panel { background-color: var(--surface-color); color: var(--text-dark); border-radius: var(--border-radius); padding: 25px; margin-bottom: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); position: relative; }
+        h2, h3 { margin-bottom: 15px; color: var(--secondary-color); border-bottom: 2px solid #eee; padding-bottom: 5px;}
+        button { background-color: var(--secondary-color); color: var(--text-light); border: none; padding: 12px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin: 5px; }
+        button.outline { background: transparent; border: 2px solid var(--secondary-color); color: var(--secondary-color); }
+        .hidden { display: none !important; }
+        .flex-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+        .table-container { overflow-x: auto; background: white; border-radius: 8px; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; font-size: 0.9em; }
+        #loader { text-align: center; margin: 10px; color: var(--accent-color); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loader" class="hidden">Syncing Archive...</div>
+
+    <div id="watch-screen" class="card-panel">
+        <div class="flex-row" style="justify-content: space-between;">
+            <h2>Game History</h2>
+            <button class="outline" onclick="window.location.href='index.html'">Back Home</button>
+        </div>
+        <div id="games-list"></div>
+    </div>
+
+    <div id="view-screen" class="card-panel table-container hidden">
+        <div class="flex-row" style="justify-content: space-between;">
+            <h3 id="view-title">Game Score</h3>
+            <button class="outline" onclick="location.reload()">Back to List</button>
+        </div>
+        <table id="score-table">
+            <thead><tr id="table-header"></tr></thead>
+            <tbody id="table-body"></tbody>
+            <tfoot><tr id="table-totals" style="background: #f1f8e9; font-weight: bold;"></tr></tfoot>
+        </table>
+    </div>
+</div>
+
+<script>
+const watchApp = {
+    supabaseUrl: 'https://kkgaceamcqqfacygtvtr.supabase.co',
+    supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
+    db: null,
+    players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
+
+    async init() {
+        this.db = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+        this.loadGames();
+    },
+
+    setLoading(active) { document.getElementById('loader').classList.toggle('hidden', !active); },
+
+    async loadGames() {
+        this.setLoading(true);
+        const { data } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(20);
+        document.getElementById('games-list').innerHTML = data.map(g => `
+            <div style="background:#fff; border: 1px solid #ddd; padding: 10px; margin-bottom: 8px; border-radius: 8px; display:flex; justify-content:space-between; align-items:center;">
+                <div><span style="font-size:0.7em;">${new Date(g.created_at).toLocaleDateString()}</span><br><strong>${g.status === 'active' ? '🔴 Live' : 'Winner: ' + g.winner}</strong></div>
+                <button class="outline" onclick="watchApp.viewGame('${g.id}')">View Details</button>
+            </div>
+        `).join('');
+        this.setLoading(false);
+    },
+
+    async viewGame(id) {
+        this.setLoading(true);
+        const { data: rounds } = await this.db.from('rounds').select('*').eq('game_id', id).order('round_number', { ascending: true });
+        
+        document.getElementById('watch-screen').classList.add('hidden');
+        document.getElementById('view-screen').classList.remove('hidden');
+        
+        this.renderTable(rounds);
+        this.setLoading(false);
+    },
+
+    renderTable(rounds) {
+        // Simple logic to calculate stars for display
+        let stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+        const header = document.getElementById('table-header');
+        const body = document.getElementById('table-body');
+        const totals = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+
+        body.innerHTML = '';
+        rounds.forEach(r => {
+            if (r.scores.type === 'global_star') {
+                this.players.forEach(p => stars[p]++);
+                body.innerHTML += `<tr><td>${r.round_number}</td><td colspan="5" style="background:#fffde7; font-size: 0.8em;">🌟 Global Star</td></tr>`;
+            } else {
+                let html = `<td>${r.round_number}</td><td style="color:var(--primary-color);font-weight:bold">${r.scores.dealer}</td>`;
+                this.players.forEach(p => {
+                    const pts = r.scores.points[p] || 0; totals[p] += pts;
+                    html += `<td>${pts}</td>`;
+                });
+                body.innerHTML += `<tr>${html}</tr>`;
+                if (r.scores.star_spent_by && r.scores.star_spent_by !== 'none') stars[r.scores.star_spent_by]--;
+            }
+        });
+
+        header.innerHTML = '<th>#</th><th>Dealer</th>' + this.players.map(p => `<th>${p}<br>⭐ ${stars[p]}</th>`).join('');
+        document.getElementById('table-totals').innerHTML = `<td colspan="2">TOTAL</td>` + this.players.map(p => `<td>${totals[p]}</td>`).join('');
+    }
+};
+watchApp.init();
+</script>
+</body>
+</html>
