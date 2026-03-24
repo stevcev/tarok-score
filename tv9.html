@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarok TV: Breaking News Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { 
+            --bg-dark: #0a0e12; --surface: #161b22; --accent: #ffd700; 
+            --primary: #4caf50; --text: #ffffff; --header-bg: #1f2937;
+            --negative: #ff5252; --rule-blue: #2196f3; --rule-purple: #9c27b0;
+            --news-red: #d32f2f; --news-dark: #050505;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI Black', 'Arial Black', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* --- BREAKING NEWS ANIMATIONS --- */
+        @keyframes newsSlam {
+            0% { transform: scale(5); opacity: 0; filter: blur(20px); }
+            40% { transform: scale(1); opacity: 1; filter: blur(0); }
+            45% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            55% { transform: translateX(0); }
+        }
+
+        @keyframes bgScan {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        @keyframes pulseBorder {
+            0%, 100% { border-color: var(--accent); }
+            50% { border-color: #fff; }
+        }
+
+        /* --- UPDATED FULLSCREEN ALERT --- */
+        #fullscreen-alert {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(270deg, #000, #1a1a1a, #000);
+            background-size: 400% 400%;
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 9999; border-top: 15px solid var(--accent); border-bottom: 15px solid var(--accent);
+            animation: bgScan 3s linear infinite;
+        }
+
+        #fullscreen-alert.active { display: flex; }
+        
+        .news-banner {
+            background: var(--news-red);
+            padding: 10px 40px;
+            font-size: 2.5rem;
+            font-weight: 900;
+            transform: skew(-15deg);
+            margin-bottom: 20px;
+            box-shadow: 10px 10px 0 #000;
+            animation: newsSlam 0.5s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards;
+        }
+
+        .alert-text-main {
+            font-size: 8rem;
+            text-align: center;
+            text-transform: uppercase;
+            line-height: 0.9;
+            letter-spacing: -4px;
+            animation: newsSlam 0.7s 0.2s cubic-bezier(0.17, 0.67, 0.83, 0.67) both;
+        }
+
+        /* --- WINNER SPECIAL --- */
+        #winner-overlay {
+            position: fixed; inset: 0; background: #000;
+            display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10000;
+        }
+        #winner-overlay.active { display: flex; animation: bgScan 2s infinite; }
+        
+        .winner-crown { font-size: 15rem; animation: newsSlam 0.8s ease-in; }
+        .winner-news-ticker {
+            position: absolute; bottom: 0; width: 100%;
+            background: var(--accent); color: #000; padding: 20px;
+            font-size: 2rem; font-weight: 900; overflow: hidden; white-space: nowrap;
+        }
+
+        /* --- CORE UI --- */
+        .tv-container { display: flex; flex-direction: column; height: 100vh; width: 100%; padding: 20px; }
+        header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 20px; background: var(--surface); border-radius: 15px; 
+            margin-bottom: 20px; border-left: 10px solid var(--news-red);
+        }
+        .status-pill { padding: 5px 15px; background: var(--news-red); font-weight: bold; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        .table-frame { flex-grow: 1; overflow-y: auto; background: var(--surface); border-radius: 15px; }
+        table { width: 100%; border-collapse: collapse; font-size: 1.8rem; }
+        th { padding: 20px; color: var(--accent); background: var(--header-bg); text-align: center;}
+        td { padding: 15px; text-align: center; border-bottom: 1px solid #30363d; }
+        tfoot { background: var(--primary); font-size: 2.2rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="fullscreen-alert">
+        <div id="news-banner" class="news-banner">BREAKING</div>
+        <div id="alert-text-main" class="alert-text-main">MATCH STARTING</div>
+    </div>
+
+    <div class="tv-container">
+        <header>
+            <div>
+                <h1 style="display:inline-block; margin-right: 15px;">TAROK NEWS 24</h1>
+                <span class="status-pill">LIVE BROADCAST</span>
+            </div>
+            <div style="text-align:right">
+                <div style="opacity:0.6; font-size: 0.8rem;">NEXT DEALER</div>
+                <div id="next-dealer-display" style="color:var(--accent); font-size: 1.5rem;">-</div>
+            </div>
+        </header>
+
+        <div class="table-frame" id="scroll-box">
+            <table>
+                <thead><tr id="table-header"></tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+        <table><tfoot id="table-totals"></tfoot></table>
+    </div>
+
+    <div id="winner-overlay">
+        <div class="winner-crown">👑</div>
+        <div id="winner-name" class="alert-text-main" style="color: var(--accent);">NAME</div>
+        <div style="font-size: 3rem; margin-top: 20px;">CHAMPION DECLARED</div>
+        <div class="winner-news-ticker">
+            FINAL RESULTS CONFIRMED • NEW CHAMPION CROWNED • ALL HAIL THE WINNER • 
+        </div>
+    </div>
+
+<script>
+const watchApp = {
+    supabaseUrl: 'https://kkgaceamcqqfacygtvtr.supabase.co',
+    supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
+    db: null,
+    players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
+
+    async init() {
+        this.db = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+        this.fetchGame();
+    },
+
+    async fetchGame() {
+        const { data: game } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(1).single();
+        if (game) {
+            if (game.status === 'active') {
+                this.playNewsIntro('LIVE COVERAGE', 'MATCH BEGINS', 4000);
+                this.loadRounds(game.id);
+            } else if (game.status === 'finished') {
+                this.showWinner(game.winner);
+            }
+            this.setupSubscription(game.id);
+        }
+    },
+
+    playNewsIntro(banner, text, duration) {
+        const el = document.getElementById('fullscreen-alert');
+        document.getElementById('news-banner').innerText = banner;
+        document.getElementById('alert-text-main').innerText = text;
+        el.classList.add('active');
+        
+        setTimeout(() => {
+            el.style.opacity = '0';
+            el.style.transition = 'opacity 0.8s';
+            setTimeout(() => {
+                el.classList.remove('active');
+                el.style.opacity = '1';
+            }, 800);
+        }, duration);
+    },
+
+    async loadRounds(gameId) {
+        const { data: rounds } = await this.db.from('rounds').select('*').eq('game_id', gameId).order('round_number', { ascending: true });
+        this.renderTable(rounds);
+    },
+
+    setupSubscription(gameId) {
+        this.db.channel(`live-${gameId}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rounds' }, payload => {
+                this.playNewsIntro('UPDATE', `ROUND ${payload.new.round_number}`, 2500);
+                this.loadRounds(gameId);
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games' }, payload => {
+                if (payload.new.status === 'finished') this.showWinner(payload.new.winner);
+            })
+            .subscribe();
+    },
+
+    renderTable(rounds) {
+        let totals = {}; this.players.forEach(p => totals[p] = 0);
+        const body = document.getElementById('table-body');
+        body.innerHTML = rounds.map(r => {
+            this.players.forEach(p => totals[p] += (r.scores.points[p] || 0));
+            return `<tr>
+                <td>${r.round_number}</td>
+                <td style="color:var(--accent)">${r.scores.dealer}</td>
+                ${this.players.map(p => `<td>${r.scores.points[p] || 0}</td>`).join('')}
+            </tr>`;
+        }).join('');
+
+        document.getElementById('table-header').innerHTML = '<th>#</th><th>DEALER</th>' + this.players.map(p => `<th>${p}</th>`).join('');
+        document.getElementById('table-totals').innerHTML = `<tr><td colspan="2">TOTAL</td>` + this.players.map(p => `<td>${totals[p]}</td>`).join('') + `</tr>`;
+        
+        const nextIdx = (rounds.length) % 4;
+        document.getElementById('next-dealer-display').innerText = this.players[nextIdx];
+    },
+
+    showWinner(name) {
+        const winOverlay = document.getElementById('winner-overlay');
+        document.getElementById('winner-name').innerText = name;
+        winOverlay.classList.add('active');
+    }
+};
+
+watchApp.init();
+</script>
+</body>
+</html>
