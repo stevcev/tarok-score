@@ -21,21 +21,18 @@ th,td{padding:6px;border-bottom:1px solid #334155;text-align:center;}
 <body>
 <div class="container">
 
-<!-- MODE SELECT -->
 <div id="modeScreen" class="card">
 <h2>Select Mode</h2>
 <button onclick="setMode('enter')">Enter Points</button>
 <button onclick="setMode('view')">Watch Score</button>
 </div>
 
-<!-- START -->
 <div id="startScreen" class="card hidden">
 <h3>Start Game</h3>
 <select id="startDealer"></select>
 <button onclick="startGame()">Start</button>
 </div>
 
-<!-- GAME -->
 <div id="gameUI" class="hidden">
 <div class="card">
 <h3 id="dealerInfo"></h3>
@@ -48,10 +45,10 @@ th,td{padding:6px;border-bottom:1px solid #334155;text-align:center;}
 <table id="scoreTable">
 <tr>
 <th>#</th><th>Dealer</th>
-<th>G ⭐<span id="gStar"></span></th>
-<th>S ⭐<span id="sStar"></span></th>
-<th>D ⭐<span id="dStar"></span></th>
-<th>M ⭐<span id="mStar"></span></th>
+<th>G ⭐</th>
+<th>S ⭐</th>
+<th>D ⭐</th>
+<th>M ⭐</th>
 </tr>
 </table>
 </div>
@@ -101,10 +98,17 @@ th,td{padding:6px;border-bottom:1px solid #334155;text-align:center;}
 </div>
 
 <script>
-const supabase = window.supabase.createClient(
-"https://kkgaceamcqqfacygtvtr.supabase.co",
-"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-);
+// FIX: avoid redeclaration error
+let supabaseClient;
+if (!window._supabaseInitialized) {
+  supabaseClient = window.supabase.createClient(
+    "https://kkgaceamcqqfacygtvtr.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c"
+  );
+  window._supabaseInitialized = true;
+} else {
+  supabaseClient = window.supabase;
+}
 
 let players=["Gordana","Stefi","Dimi","Mile"];
 let scores,history,round,dealerIndex,stars,modeType,gameId,threshold=null,skis=null;
@@ -187,7 +191,7 @@ function undoRound(){
  round--;
 }
 
-function setThreshold(){threshold=+thresholdInput.value;}
+function setThreshold(){threshold=+document.getElementById('threshold').value;}
 function setSkis(){skis=skisSelect.value;}
 function endGameManual(){finishGame(getWinner());}
 
@@ -210,25 +214,38 @@ function closePopup(){popup.classList.add('hidden');}
 
 // SUPABASE
 async function createGame(){
- let {data}=await supabase.from('games').insert({status:'active'}).select();
+ let {data,error}=await supabaseClient.from('games').insert({status:'active'}).select();
+ if(error){console.error(error);return;}
  gameId=data[0].id;
 }
 
 async function logRound(){
- await supabase.from('rounds').insert({game_id:gameId,round, scores});
+ if(!gameId) return;
+ await supabaseClient.from('rounds').insert({game_id:gameId,round,scores});
 }
 
 async function saveGame(winner){
- await supabase.from('games').update({status:'finished',winner}).eq('id',gameId);
+ if(!gameId) return;
+ await supabaseClient.from('games').update({status:'finished',winner}).eq('id',gameId);
 }
 
 async function loadGames(){
- let {data}=await supabase.from('games').select('*');
+ let {data,error}=await supabaseClient.from('games').select('*');
+ if(error){console.error(error);return;}
  console.log(data);
 }
 
 init();
 </script>
+
+<!-- TEST CASES:
+1. Start game -> no console error (supabase init once)
+2. Add round team mode -> only 2 players change
+3. Star all -> doubles points
+4. Undo -> restores previous scores
+5. Threshold -> triggers popup
+6. Manual end -> popup appears
+-->
 
 </body>
 </html>
