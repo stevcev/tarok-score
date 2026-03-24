@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarok TV: Pro Broadcast</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { 
+            --bg-dark: #0a0e12; --surface: #161b22; --accent: #ffd700; 
+            --primary: #4caf50; --text: #ffffff; --header-bg: #1f2937;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* Waiting Animation */
+        #waiting-screen {
+            position: fixed; inset: 0; background: var(--bg-dark);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 4000;
+        }
+        .pulse-orbit {
+            width: 100px; height: 100px; border: 5px solid var(--accent);
+            border-radius: 50%; animation: pulse-ring 2s infinite; margin-bottom: 20px;
+        }
+        @keyframes pulse-ring { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+
+        /* Main UI */
+        .tv-container { display: flex; flex-direction: column; height: 100vh; width: 100%; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: var(--surface); border-radius: 15px; margin-bottom: 20px; border-bottom: 4px solid var(--accent); }
+        .table-frame { flex-grow: 1; overflow-y: auto; background: var(--surface); border-radius: 15px; }
+        table { width: 100%; border-collapse: collapse; font-size: 1.8rem; }
+        thead { position: sticky; top: 0; background: var(--header-bg); z-index: 10; }
+        th { padding: 20px; color: var(--accent); border-bottom: 2px solid #30363d; }
+        td { padding: 15px; text-align: center; border-bottom: 1px solid #30363d; }
+        tfoot { position: sticky; bottom: 0; background: var(--primary); font-size: 2.2rem; font-weight: bold; }
+
+        /* Reel Animation */
+        #reel-overlay {
+            position: fixed; top: 0; left: -100%; width: 100%; height: 100%;
+            background: var(--accent); color: black; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 2000;
+            transition: left 0.6s cubic-bezier(0.85, 0, 0.15, 1);
+        }
+        #reel-overlay.active { left: 0; }
+        #reel-overlay.exit { left: 100%; }
+
+        /* Winner Overlay (No Close Button) */
+        #winner-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.98);
+            display: flex; justify-content: center; align-items: center; z-index: 3000;
+        }
+        .winner-card { 
+            text-align: center; padding: 80px; border-radius: 40px; border: 10px solid var(--accent);
+            animation: winner-glow 2s infinite alternate;
+        }
+        @keyframes winner-glow { from { box-shadow: 0 0 20px var(--accent); } to { box-shadow: 0 0 80px var(--accent); } }
+        
+        .hidden { display: none !important; }
+        .star-row { background: rgba(255, 215, 0, 0.05); color: var(--accent); font-style: italic; font-size: 1.4rem; }
+    </style>
+</head>
+<body>
+
+    <div id="waiting-screen" class="hidden">
+        <div class="pulse-orbit"></div>
+        <h2 style="letter-spacing: 4px; color: var(--accent)">SEARCHING FOR LIVE GAME...</h2>
+        <p style="margin-top: 10px; opacity: 0.6;">Connect a controller to begin scoring</p>
+    </div>
+
+    <div id="reel-overlay">
+        <h2 id="reel-text" style="font-size: 6rem; font-weight: 900;">ROUND COMPLETE</h2>
+    </div>
+
+    <div class="tv-container">
+        <header>
+            <h1>TAROK BROADCAST</h1>
+            <div id="status-tag" style="background: #ff5252; padding: 5px 15px; border-radius: 5px; font-weight: bold;">LIVE</div>
+        </header>
+
+        <div class="table-frame" id="scroll-box">
+            <table>
+                <thead><tr id="table-header"></tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+
+        <table style="margin-top: -2px;">
+            <tfoot id="table-totals"></tfoot>
+        </table>
+    </div>
+
+    <div id="winner-overlay" class="hidden">
+        <div class="winner-card">
+            <h1 style="font-size: 10rem;">👑</h1>
+            <h2 id="winner-name" style="font-size: 6rem; color: var(--accent); text-transform: uppercase;">-</h2>
+            <p style="font-size: 2rem; margin-top: 20px;">GAME FINISHED</p>
+        </div>
+    </div>
+
+<script>
+const watchApp = {
+    supabaseUrl: 'https://kkgaceamcqqfacygtvtr.supabase.co',
+    supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZ2FjZWFtY3FxZmFjeWd0dnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NjQsImV4cCI6MjA4OTkzNzY2NH0.UpRr5tW1Quxbplz5dZsXFvy06-3pDCuPIIshE21KH3c',
+    db: null,
+    players: ['Gordana', 'Stefi', 'Dimi', 'Mile'],
+
+    async init() {
+        this.db = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+        this.checkInitialState();
+    },
+
+    async checkInitialState() {
+        const { data: game } = await this.db.from('games').select('*').order('created_at', { ascending: false }).limit(1).single();
+        
+        if (!game || (game.status !== 'active' && !this.isRecent(game.created_at))) {
+            document.getElementById('waiting-screen').classList.remove('hidden');
+            this.listenForNewGames();
+        } else {
+            this.startGameView(game);
+        }
+    },
+
+    isRecent(date) {
+        const gameTime = new Date(date).getTime();
+        const now = new Date().getTime();
+        return (now - gameTime) < 3600000; // Within 1 hour
+    },
+
+    listenForNewGames() {
+        this.db.channel('lobby').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'games' }, payload => {
+            location.reload();
+        }).subscribe();
+    },
+
+    async startGameView(game) {
+        document.getElementById('waiting-screen').classList.add('hidden');
+        if (game.status === 'finished') this.showWinner(game.winner);
+        
+        const { data: rounds } = await this.db.from('rounds').select('*').eq('game_id', game.id).order('round_number', { ascending: true });
+        this.renderTable(rounds);
+        this.setupSubscription(game.id);
+    },
+
+    setupSubscription(gameId) {
+        this.db.channel(`tv-live-${gameId}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rounds', filter: `game_id=eq.${gameId}` }, async (payload) => {
+                // Only trigger animation if it's NOT a global star
+                if (payload.new.scores.type !== 'global_star') {
+                    this.triggerReel(payload.new.round_number);
+                }
+                const { data: updatedRounds } = await this.db.from('rounds').select('*').eq('game_id', gameId).order('round_number', { ascending: true });
+                setTimeout(() => this.renderTable(updatedRounds), 600);
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` }, payload => {
+                if (payload.new.status === 'finished') this.showWinner(payload.new.winner);
+                if (payload.new.status === 'active') document.getElementById('winner-overlay').classList.add('hidden');
+            })
+            .subscribe();
+    },
+
+    triggerReel(num) {
+        const reel = document.getElementById('reel-overlay');
+        document.getElementById('reel-text').innerText = `ROUND ${num} SCORED`;
+        reel.classList.add('active');
+        setTimeout(() => {
+            reel.classList.add('exit');
+            setTimeout(() => reel.classList.remove('active', 'exit'), 600);
+        }, 2000);
+    },
+
+    renderTable(rounds) {
+        let stars = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+        const body = document.getElementById('table-body');
+        const totals = { 'Gordana': 0, 'Stefi': 0, 'Dimi': 0, 'Mile': 0 };
+
+        body.innerHTML = '';
+        rounds.forEach(r => {
+            if (r.scores.type === 'global_star') {
+                this.players.forEach(p => stars[p]++);
+                body.innerHTML += `<tr class="star-row"><td colspan="6">🌟 GLOBAL STAR ADDED</td></tr>`;
+            } else {
+                let html = `<td>${r.round_number}</td><td style="color:var(--accent)">${r.scores.dealer}</td>`;
+                this.players.forEach(p => {
+                    const pts = r.scores.points[p] || 0; totals[p] += pts;
+                    html += `<td style="color:${pts < 0 ? '#ff5252' : '#fff'}">${pts}</td>`;
+                });
+                body.innerHTML += `<tr>${html}</tr>`;
+                if (r.scores.star_spent_by && r.scores.star_spent_by !== 'none') stars[r.scores.star_spent_by]--;
+            }
+        });
+
+        document.getElementById('table-header').innerHTML = '<th>#</th><th>Dealer</th>' + 
+            this.players.map(p => `<th>${p}<br><span style="color:var(--accent)">⭐ ${stars[p]}</span></th>`).join('');
+        
+        document.getElementById('table-totals').innerHTML = `<tr><td colspan="2">TOTAL</td>` + 
+            this.players.map(p => `<td>${totals[p]}</td>`).join('') + `</tr>`;
+
+        const box = document.getElementById('scroll-box');
+        box.scrollTop = box.scrollHeight;
+    },
+
+    showWinner(name) {
+        document.getElementById('winner-name').innerText = name;
+        document.getElementById('winner-overlay').classList.remove('hidden');
+    }
+};
+watchApp.init();
+</script>
+</body>
+</html>
